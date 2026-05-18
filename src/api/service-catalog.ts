@@ -5,6 +5,7 @@ import {
   CapabilityDescriptorSchema,
   CapabilityKind,
   CapabilityTargetSchema,
+  CapabilityVisibility,
   ContractReferenceSchema,
   ListServicesResponseSchema,
   ServiceDescriptorSchema,
@@ -12,7 +13,12 @@ import {
   type ServiceDescriptor,
 } from "@byte-v-forge/contracts-ts/byte/v/forge/contracts/servicecatalog/v1/catalog_pb"
 
-export { CapabilityAvailabilityStatus, CapabilityKind, ServiceHealthStatus }
+export {
+  CapabilityAvailabilityStatus,
+  CapabilityKind,
+  CapabilityVisibility,
+  ServiceHealthStatus,
+}
 export type { ServiceDescriptor }
 
 const localCatalog = create(ListServicesResponseSchema, {
@@ -34,6 +40,7 @@ const localCatalog = create(ListServicesResponseSchema, {
           displayName: "服务发现",
           description: "列出已注册服务及其能力描述。",
           kind: CapabilityKind.QUERY,
+          visibility: CapabilityVisibility.PUBLIC,
           ownerServiceId: "service-catalog",
           invocationRef: "catalog://service-catalog/servicecatalog.services",
           availability: create(CapabilityAvailabilitySchema, {
@@ -59,6 +66,7 @@ const localCatalog = create(ListServicesResponseSchema, {
           displayName: "账号查询",
           description: "按状态、标识和标签查询账号库存。",
           kind: CapabilityKind.QUERY,
+          visibility: CapabilityVisibility.PUBLIC,
           ownerServiceId: "account-manager",
           inputContract: create(ContractReferenceSchema, {
             contractRef: "contracts/account/v1/ListAccountsRequest",
@@ -82,6 +90,7 @@ const localCatalog = create(ListServicesResponseSchema, {
           displayName: "账号占用",
           description: "按 selector 占用可用账号。",
           kind: CapabilityKind.ACTION,
+          visibility: CapabilityVisibility.PUBLIC,
           ownerServiceId: "account-manager",
           inputContract: create(ContractReferenceSchema, {
             contractRef: "contracts/account/v1/ReserveAccountRequest",
@@ -105,6 +114,7 @@ const localCatalog = create(ListServicesResponseSchema, {
           displayName: "账号标签",
           description: "更新账号级用户标签。",
           kind: CapabilityKind.ACTION,
+          visibility: CapabilityVisibility.PUBLIC,
           ownerServiceId: "account-manager",
           inputContract: create(ContractReferenceSchema, {
             contractRef: "contracts/account/v1/UpdateAccountTagsRequest",
@@ -126,7 +136,7 @@ const localCatalog = create(ListServicesResponseSchema, {
       ],
     }),
     create(ServiceDescriptorSchema, {
-      serviceId: "gpt-account",
+      serviceId: "gpt-service",
       displayName: "GPT 账号管理",
       description: "GPT 账号视图、扩展字段和库存查询入口。",
       owner: "gpt",
@@ -142,7 +152,8 @@ const localCatalog = create(ListServicesResponseSchema, {
           displayName: "GPT 账号池",
           description: "查询 GPT 账号库存和公开展示字段。",
           kind: CapabilityKind.QUERY,
-          ownerServiceId: "gpt-account",
+          visibility: CapabilityVisibility.PUBLIC,
+          ownerServiceId: "gpt-service",
           inputContract: create(ContractReferenceSchema, {
             contractRef: "contracts/account/v1/ListAccountsRequest",
           }),
@@ -165,7 +176,8 @@ const localCatalog = create(ListServicesResponseSchema, {
           displayName: "刷新 GPT 账号资料",
           description: "刷新 GPT 账号公开资料和扩展字段。",
           kind: CapabilityKind.ACTION,
-          ownerServiceId: "gpt-account",
+          visibility: CapabilityVisibility.PUBLIC,
+          ownerServiceId: "gpt-service",
           inputContract: create(ContractReferenceSchema, {
             contractRef: "contracts/account/v1/GetAccountRequest",
           }),
@@ -173,7 +185,7 @@ const localCatalog = create(ListServicesResponseSchema, {
             contractRef: "contracts/account/v1/GetAccountResponse",
           }),
           invocationRef:
-            "grpc://gpt-account/GptAccountProfileService.RefreshProfile",
+            "grpc://gpt-service/GptAccountProfileService.RefreshProfile",
           targets: [
             create(CapabilityTargetSchema, {
               resourceType: "account.gpt",
@@ -186,7 +198,7 @@ const localCatalog = create(ListServicesResponseSchema, {
       ],
     }),
     create(ServiceDescriptorSchema, {
-      serviceId: "outlook-account",
+      serviceId: "outlook-service",
       displayName: "Outlook 账号管理",
       description: "Outlook 账号视图、扩展字段和库存查询入口。",
       owner: "outlook",
@@ -202,7 +214,8 @@ const localCatalog = create(ListServicesResponseSchema, {
           displayName: "Outlook 账号池",
           description: "查询 Outlook 账号库存和公开展示字段。",
           kind: CapabilityKind.QUERY,
-          ownerServiceId: "outlook-account",
+          visibility: CapabilityVisibility.PUBLIC,
+          ownerServiceId: "outlook-service",
           inputContract: create(ContractReferenceSchema, {
             contractRef: "contracts/account/v1/ListAccountsRequest",
           }),
@@ -225,7 +238,8 @@ const localCatalog = create(ListServicesResponseSchema, {
           displayName: "刷新 Outlook 账号资料",
           description: "刷新 Outlook 账号公开资料和扩展字段。",
           kind: CapabilityKind.ACTION,
-          ownerServiceId: "outlook-account",
+          visibility: CapabilityVisibility.PUBLIC,
+          ownerServiceId: "outlook-service",
           inputContract: create(ContractReferenceSchema, {
             contractRef: "contracts/account/v1/GetAccountRequest",
           }),
@@ -233,7 +247,7 @@ const localCatalog = create(ListServicesResponseSchema, {
             contractRef: "contracts/account/v1/GetAccountResponse",
           }),
           invocationRef:
-            "grpc://outlook-account/OutlookAccountProfileService.RefreshProfile",
+            "grpc://outlook-service/OutlookAccountProfileService.RefreshProfile",
           targets: [
             create(CapabilityTargetSchema, {
               resourceType: "account.outlook",
@@ -279,6 +293,7 @@ function normalizeServices(services: ServiceDescriptor[]): ServiceDescriptor[] {
     capabilities: (service.capabilities ?? []).map((capability) => ({
       ...capability,
       kind: normalizeKind(capability.kind),
+      visibility: normalizeVisibility(capability.visibility),
       targets: capability.targets ?? [],
       dependencies: capability.dependencies ?? [],
       availability: capability.availability ?? create(CapabilityAvailabilitySchema, {
@@ -299,6 +314,19 @@ function normalizeHealth(value: ServiceHealthStatus): ServiceHealthStatus {
     case ServiceHealthStatus.UNKNOWN:
     default:
       return ServiceHealthStatus.UNKNOWN
+  }
+}
+
+function normalizeVisibility(value: CapabilityVisibility): CapabilityVisibility {
+  switch (value) {
+    case CapabilityVisibility.INTERNAL:
+      return CapabilityVisibility.INTERNAL
+    case CapabilityVisibility.PRIVATE:
+      return CapabilityVisibility.PRIVATE
+    case CapabilityVisibility.PUBLIC:
+    case CapabilityVisibility.UNSPECIFIED:
+    default:
+      return CapabilityVisibility.PUBLIC
   }
 }
 

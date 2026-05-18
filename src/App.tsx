@@ -115,7 +115,7 @@ const localAccounts = [
       }),
     ],
     labels: {
-      owner_service: "gpt-account",
+      owner_service: "gpt-service",
       tier: "warm",
     },
     tags: {
@@ -140,7 +140,7 @@ const localAccounts = [
       }),
     ],
     labels: {
-      owner_service: "outlook-account",
+      owner_service: "outlook-service",
       tier: "recovery",
     },
     tags: {
@@ -851,7 +851,9 @@ function accountResourceTypes(account: Account) {
   const accountType =
     account.tags.account_type ||
     account.labels.account_type ||
-    (account.labels.owner_service ?? "").replace(/-orchestrator$/, "")
+    (account.labels.owner_service ?? "")
+      .replace(/-private-service$/, "")
+      .replace(/-service$/, "")
 
   if (!accountType) {
     return ["account"]
