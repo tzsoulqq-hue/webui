@@ -39,83 +39,20 @@ export type ServiceCatalogResponse = {
 const localCatalog: ServiceCatalogResponse = {
   services: [
     {
-      serviceId: "registration-service",
-      displayName: "注册服务",
-      description: "账号注册类能力聚合入口。",
-      owner: "registration",
-      health: "degraded",
-      contracts: [
-        { contractRef: "internal-contracts/gptregister/v1" },
-        { contractRef: "internal-contracts/outlookregister/v1" },
-      ],
-      capabilities: [
-        {
-          capabilityId: "registration.jobs",
-          displayName: "注册任务",
-          description: "注册任务创建、查询与状态追踪。",
-          kind: "workflow",
-          ownerServiceId: "registration-service",
-          invocationRef: "catalog://registration-service/registration.jobs",
-        },
-      ],
-    },
-    {
-      serviceId: "verification-service",
-      displayName: "验证服务",
-      description: "验证码、邮箱验证和外部校验能力。",
-      owner: "verification",
+      serviceId: "service-catalog",
+      displayName: "服务目录",
+      description: "服务、能力、契约引用和入口引用的发现入口。",
+      owner: "platform",
       health: "serving",
-      contracts: [
-        { contractRef: "contracts/sms/v1" },
-        { contractRef: "contracts/mailbox/v1" },
-      ],
+      contracts: [{ contractRef: "contracts/servicecatalog/v1" }],
       capabilities: [
         {
-          capabilityId: "verification.messages",
-          displayName: "消息验证",
-          description: "验证码接收、邮件检索与验证状态查询。",
+          capabilityId: "servicecatalog.services",
+          displayName: "服务发现",
+          description: "列出已注册服务及其能力描述。",
           kind: "query",
-          ownerServiceId: "verification-service",
-          invocationRef: "catalog://verification-service/verification.messages",
-        },
-      ],
-    },
-    {
-      serviceId: "account-inventory-service",
-      displayName: "账号库存服务",
-      description: "账号库存、凭据引用和生命周期状态。",
-      owner: "account",
-      health: "serving",
-      contracts: [
-        { contractRef: "internal-contracts/gptaccount/v1" },
-        { contractRef: "internal-contracts/outlookaccount/v1" },
-      ],
-      capabilities: [
-        {
-          capabilityId: "account.inventory",
-          displayName: "账号库存",
-          description: "账号查询、状态更新和凭据引用管理。",
-          kind: "query",
-          ownerServiceId: "account-inventory-service",
-          invocationRef: "catalog://account-inventory-service/account.inventory",
-        },
-      ],
-    },
-    {
-      serviceId: "automation-service",
-      displayName: "自动化服务",
-      description: "浏览器任务执行、会话和产物管理。",
-      owner: "automation",
-      health: "serving",
-      contracts: [{ contractRef: "internal-contracts/browserautomation/v1" }],
-      capabilities: [
-        {
-          capabilityId: "automation.sessions",
-          displayName: "自动化会话",
-          description: "浏览器会话、任务执行与产物查询。",
-          kind: "action",
-          ownerServiceId: "automation-service",
-          invocationRef: "catalog://automation-service/automation.sessions",
+          ownerServiceId: "service-catalog",
+          invocationRef: "catalog://service-catalog/servicecatalog.services",
         },
       ],
     },
