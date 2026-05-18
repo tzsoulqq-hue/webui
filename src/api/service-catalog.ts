@@ -160,8 +160,7 @@ const localCatalog = create(ListServicesResponseSchema, {
           outputContract: create(ContractReferenceSchema, {
             contractRef: "contracts/account/v1/ListAccountsResponse",
           }),
-          invocationRef:
-            "account://account-manager/accounts?account_type=gpt",
+          invocationRef: "account://account-manager/accounts?account_type=gpt",
           targets: [
             create(CapabilityTargetSchema, {
               resourceType: "account.gpt",
@@ -172,20 +171,22 @@ const localCatalog = create(ListServicesResponseSchema, {
           }),
         }),
         create(CapabilityDescriptorSchema, {
-          capabilityId: "gpt.account.profile.refresh",
-          displayName: "刷新 GPT 账号资料",
-          description: "刷新 GPT 账号公开资料和扩展字段。",
-          kind: CapabilityKind.ACTION,
+          capabilityId: "gpt.account.extension.fields",
+          displayName: "GPT 账号展示字段",
+          description: "查询 GPT 账号公开扩展字段定义。",
+          kind: CapabilityKind.QUERY,
           visibility: CapabilityVisibility.PUBLIC,
           ownerServiceId: "gpt-service",
           inputContract: create(ContractReferenceSchema, {
-            contractRef: "contracts/account/v1/GetAccountRequest",
+            contractRef:
+              "contracts/account/v1/ListAccountExtensionFieldsRequest",
           }),
           outputContract: create(ContractReferenceSchema, {
-            contractRef: "contracts/account/v1/GetAccountResponse",
+            contractRef:
+              "contracts/account/v1/ListAccountExtensionFieldsResponse",
           }),
           invocationRef:
-            "grpc://gpt-service/GptAccountProfileService.RefreshProfile",
+            "grpc://account-manager/AccountExtensionService.ListAccountExtensionFields",
           targets: [
             create(CapabilityTargetSchema, {
               resourceType: "account.gpt",
@@ -234,20 +235,22 @@ const localCatalog = create(ListServicesResponseSchema, {
           }),
         }),
         create(CapabilityDescriptorSchema, {
-          capabilityId: "outlook.account.profile.refresh",
-          displayName: "刷新 Outlook 账号资料",
-          description: "刷新 Outlook 账号公开资料和扩展字段。",
-          kind: CapabilityKind.ACTION,
+          capabilityId: "outlook.account.extension.fields",
+          displayName: "Outlook 账号展示字段",
+          description: "查询 Outlook 账号公开扩展字段定义。",
+          kind: CapabilityKind.QUERY,
           visibility: CapabilityVisibility.PUBLIC,
           ownerServiceId: "outlook-service",
           inputContract: create(ContractReferenceSchema, {
-            contractRef: "contracts/account/v1/GetAccountRequest",
+            contractRef:
+              "contracts/account/v1/ListAccountExtensionFieldsRequest",
           }),
           outputContract: create(ContractReferenceSchema, {
-            contractRef: "contracts/account/v1/GetAccountResponse",
+            contractRef:
+              "contracts/account/v1/ListAccountExtensionFieldsResponse",
           }),
           invocationRef:
-            "grpc://outlook-service/OutlookAccountProfileService.RefreshProfile",
+            "grpc://account-manager/AccountExtensionService.ListAccountExtensionFields",
           targets: [
             create(CapabilityTargetSchema, {
               resourceType: "account.outlook",
@@ -296,9 +299,11 @@ function normalizeServices(services: ServiceDescriptor[]): ServiceDescriptor[] {
       visibility: normalizeVisibility(capability.visibility),
       targets: capability.targets ?? [],
       dependencies: capability.dependencies ?? [],
-      availability: capability.availability ?? create(CapabilityAvailabilitySchema, {
-        status: CapabilityAvailabilityStatus.UNKNOWN,
-      }),
+      availability:
+        capability.availability ??
+        create(CapabilityAvailabilitySchema, {
+          status: CapabilityAvailabilityStatus.UNKNOWN,
+        }),
     })),
   }))
 }
@@ -317,7 +322,9 @@ function normalizeHealth(value: ServiceHealthStatus): ServiceHealthStatus {
   }
 }
 
-function normalizeVisibility(value: CapabilityVisibility): CapabilityVisibility {
+function normalizeVisibility(
+  value: CapabilityVisibility
+): CapabilityVisibility {
   switch (value) {
     case CapabilityVisibility.INTERNAL:
       return CapabilityVisibility.INTERNAL
