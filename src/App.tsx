@@ -14,9 +14,6 @@ import {
 import { useMemo, useState } from "react"
 import { create } from "@bufbuild/protobuf"
 import {
-  AccountCredentialRefSchema,
-  AccountCredentialStatus,
-  AccountCredentialType,
   AccountIdentifierKind,
   AccountIdentifierSchema,
   AccountLifecycleStatus,
@@ -90,63 +87,20 @@ const queryClient = new QueryClient()
 const overviewKey = "overview"
 const localAccounts = [
   create(AccountSchema, {
-    accountId: "acct_demo_active",
-    displayName: "GPT account pool",
+    accountId: "acct_demo_generic",
+    displayName: "Demo account",
     primaryIdentifier: create(AccountIdentifierSchema, {
       kind: AccountIdentifierKind.EMAIL,
-      value: "pool@example.test",
+      value: "account@example.test",
       verified: true,
     }),
     status: AccountLifecycleStatus.ACTIVE,
-    accountType: "gpt",
-    credentials: [
-      create(AccountCredentialRefSchema, {
-        credentialId: "cred_demo_password",
-        accountId: "acct_demo_active",
-        type: AccountCredentialType.PASSWORD,
-        status: AccountCredentialStatus.ACTIVE,
-        secretRef: "secret://account/acct_demo_active/password",
-      }),
-      create(AccountCredentialRefSchema, {
-        credentialId: "cred_demo_session",
-        accountId: "acct_demo_active",
-        type: AccountCredentialType.SESSION_COOKIE,
-        status: AccountCredentialStatus.ROTATION_REQUIRED,
-        secretRef: "secret://account/acct_demo_active/session",
-      }),
-    ],
+    accountType: "generic",
     labels: {
-      owner_service: "gpt-service",
-      tier: "warm",
+      owner_service: "account-manager",
     },
     tags: {
-      channel: "pool",
-    },
-  }),
-  create(AccountSchema, {
-    accountId: "acct_demo_locked",
-    displayName: "Outlook recovery pool",
-    primaryIdentifier: create(AccountIdentifierSchema, {
-      kind: AccountIdentifierKind.EMAIL,
-      value: "recovery@example.test",
-    }),
-    status: AccountLifecycleStatus.RECOVERY_REQUIRED,
-    accountType: "outlook",
-    credentials: [
-      create(AccountCredentialRefSchema, {
-        credentialId: "cred_demo_recovery",
-        accountId: "acct_demo_locked",
-        type: AccountCredentialType.RECOVERY_CODE,
-        status: AccountCredentialStatus.ACTIVE,
-        secretRef: "secret://account/acct_demo_locked/recovery",
-      }),
-    ],
-    labels: {
-      owner_service: "outlook-service",
-      tier: "recovery",
-    },
-    tags: {
-      channel: "recovery",
+      channel: "demo",
     },
   }),
 ]
