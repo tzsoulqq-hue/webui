@@ -98,6 +98,7 @@ const localAccounts = [
       verified: true,
     }),
     status: AccountLifecycleStatus.ACTIVE,
+    accountType: "gpt",
     credentials: [
       create(AccountCredentialRefSchema, {
         credentialId: "cred_demo_password",
@@ -119,7 +120,7 @@ const localAccounts = [
       tier: "warm",
     },
     tags: {
-      account_type: "gpt",
+      channel: "pool",
     },
   }),
   create(AccountSchema, {
@@ -130,6 +131,7 @@ const localAccounts = [
       value: "recovery@example.test",
     }),
     status: AccountLifecycleStatus.RECOVERY_REQUIRED,
+    accountType: "outlook",
     credentials: [
       create(AccountCredentialRefSchema, {
         credentialId: "cred_demo_recovery",
@@ -144,7 +146,7 @@ const localAccounts = [
       tier: "recovery",
     },
     tags: {
-      account_type: "outlook",
+      channel: "recovery",
     },
   }),
 ]
@@ -264,7 +266,8 @@ function Dashboard() {
     (service) => service.serviceId === selectedAccount?.labels.owner_service
   )
   const selectedAccountResourceTypes = useMemo(
-    () => (selectedAccount ? accountResourceTypes(selectedAccount) : ["account"]),
+    () =>
+      selectedAccount ? accountResourceTypes(selectedAccount) : ["account"],
     [selectedAccount]
   )
   const selectedAccountActions = useMemo(() => {
@@ -834,7 +837,9 @@ function isAccountCapability(capability: CatalogCapability) {
     return true
   }
   if (
-    capability.targets.some((target) => target.resourceType.startsWith("account."))
+    capability.targets.some((target) =>
+      target.resourceType.startsWith("account.")
+    )
   ) {
     return true
   }
@@ -848,12 +853,7 @@ function isAccountCapability(capability: CatalogCapability) {
 }
 
 function accountResourceTypes(account: Account) {
-  const accountType =
-    account.tags.account_type ||
-    account.labels.account_type ||
-    (account.labels.owner_service ?? "")
-      .replace(/-private-service$/, "")
-      .replace(/-service$/, "")
+  const accountType = account.accountType
 
   if (!accountType) {
     return ["account"]
@@ -870,7 +870,9 @@ function capabilityTargetsAnyResource(
     return false
   }
 
-  return capability.targets.some((target) => resourceTypes.has(target.resourceType))
+  return capability.targets.some((target) =>
+    resourceTypes.has(target.resourceType)
+  )
 }
 
 function capabilityAvailable(capability: CatalogCapability) {

@@ -12,11 +12,11 @@ importers:
         specifier: ^2.12.0
         version: 2.12.0
       '@byte-v-forge/contracts-ts':
-        specifier: github:byte-v-forge/contracts-ts#v0.9.0
-        version: https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/851229662d5580cf86b040de84c3bf7524b5802d
+        specifier: github:byte-v-forge/contracts-ts#v0.10.0
+        version: https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/7a8027c993ae8168803c9583531677d70b26b7ea
       '@byte-v-forge/uikit':
-        specifier: github:byte-v-forge/uikit#v0.2.9
-        version: https://codeload.github.com/byte-v-forge/uikit/tar.gz/74a201bf57c5414386e224b6e0f3097416f0b3f0(@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/851229662d5580cf86b040de84c3bf7524b5802d)(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)
+        specifier: github:byte-v-forge/uikit#v0.2.10
+        version: https://codeload.github.com/byte-v-forge/uikit/tar.gz/c92e94514e6b87f7055898cd21697a89d5c5a7f2(@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/7a8027c993ae8168803c9583531677d70b26b7ea)(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)
       '@fontsource-variable/geist':
         specifier: ^5.2.9
         version: 5.2.9
@@ -237,15 +237,15 @@ packages:
   '@bufbuild/protobuf@2.12.0':
     resolution: {integrity: sha512-B/XlCaFIP8LOwzo+bz5uFzATYokcwCKQcghqnlfwSmM5eX/qTkvDBnDPs+gXtX/RyjxJ4DRikECcPJbyALA8FA==}
 
-  '@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/851229662d5580cf86b040de84c3bf7524b5802d':
-    resolution: {tarball: https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/851229662d5580cf86b040de84c3bf7524b5802d}
-    version: 0.9.0
+  '@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/7a8027c993ae8168803c9583531677d70b26b7ea':
+    resolution: {tarball: https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/7a8027c993ae8168803c9583531677d70b26b7ea}
+    version: 0.10.0
 
-  '@byte-v-forge/uikit@https://codeload.github.com/byte-v-forge/uikit/tar.gz/74a201bf57c5414386e224b6e0f3097416f0b3f0':
-    resolution: {tarball: https://codeload.github.com/byte-v-forge/uikit/tar.gz/74a201bf57c5414386e224b6e0f3097416f0b3f0}
-    version: 0.2.9
+  '@byte-v-forge/uikit@https://codeload.github.com/byte-v-forge/uikit/tar.gz/c92e94514e6b87f7055898cd21697a89d5c5a7f2':
+    resolution: {tarball: https://codeload.github.com/byte-v-forge/uikit/tar.gz/c92e94514e6b87f7055898cd21697a89d5c5a7f2}
+    version: 0.2.10
     peerDependencies:
-      '@byte-v-forge/contracts-ts': ^0.9.0
+      '@byte-v-forge/contracts-ts': ^0.10.0
       react: ^19.0.0
       react-dom: ^19.0.0
       tailwindcss: ^4.0.0
@@ -3526,13 +3526,13 @@ snapshots:
 
   '@bufbuild/protobuf@2.12.0': {}
 
-  '@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/851229662d5580cf86b040de84c3bf7524b5802d':
+  '@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/7a8027c993ae8168803c9583531677d70b26b7ea':
     dependencies:
       '@bufbuild/protobuf': 2.12.0
 
-  '@byte-v-forge/uikit@https://codeload.github.com/byte-v-forge/uikit/tar.gz/74a201bf57c5414386e224b6e0f3097416f0b3f0(@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/851229662d5580cf86b040de84c3bf7524b5802d)(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)':
+  '@byte-v-forge/uikit@https://codeload.github.com/byte-v-forge/uikit/tar.gz/c92e94514e6b87f7055898cd21697a89d5c5a7f2(@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/7a8027c993ae8168803c9583531677d70b26b7ea)(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)':
     dependencies:
-      '@byte-v-forge/contracts-ts': https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/851229662d5580cf86b040de84c3bf7524b5802d
+      '@byte-v-forge/contracts-ts': https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/7a8027c993ae8168803c9583531677d70b26b7ea
       '@radix-ui/react-slot': 1.2.4(@types/react@19.2.14)(react@19.2.6)
       class-variance-authority: 0.7.1
       clsx: 2.1.1
