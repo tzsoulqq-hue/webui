@@ -75,5 +75,53 @@ export async function listServices(): Promise<ServiceDescriptor[]> {
   }
 
   const body = (await response.json()) as ServiceCatalogResponse
-  return body.services
+  return normalizeServices(body.services)
+}
+
+function normalizeServices(services: ServiceDescriptor[]): ServiceDescriptor[] {
+  return services.map((service) => ({
+    ...service,
+    health: normalizeHealth(service.health),
+    contracts: service.contracts ?? [],
+    capabilities: (service.capabilities ?? []).map((capability) => ({
+      ...capability,
+      kind: normalizeKind(capability.kind),
+    })),
+  }))
+}
+
+function normalizeHealth(value: string): ServiceHealthStatus {
+  switch (value) {
+    case "SERVICE_HEALTH_STATUS_SERVING":
+    case "serving":
+      return "serving"
+    case "SERVICE_HEALTH_STATUS_DEGRADED":
+    case "degraded":
+      return "degraded"
+    case "SERVICE_HEALTH_STATUS_NOT_SERVING":
+    case "not_serving":
+      return "not_serving"
+    case "SERVICE_HEALTH_STATUS_UNKNOWN":
+    case "unknown":
+    default:
+      return "unknown"
+  }
+}
+
+function normalizeKind(value: string): CapabilityKind {
+  switch (value) {
+    case "CAPABILITY_KIND_PAGE":
+    case "page":
+      return "page"
+    case "CAPABILITY_KIND_ACTION":
+    case "action":
+      return "action"
+    case "CAPABILITY_KIND_WORKFLOW":
+    case "workflow":
+      return "workflow"
+    case "CAPABILITY_KIND_QUERY":
+    case "query":
+    default:
+      return "query"
+  }
 }
