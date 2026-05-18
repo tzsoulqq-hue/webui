@@ -78,6 +78,21 @@ const localCatalog = create(ListServicesResponseSchema, {
           invocationRef:
             "grpc://account-manager/AccountInventoryService.ReserveAccount",
         }),
+        create(CapabilityDescriptorSchema, {
+          capabilityId: "account.tags.update",
+          displayName: "账号标签",
+          description: "更新账号级用户标签。",
+          kind: CapabilityKind.ACTION,
+          ownerServiceId: "account-manager",
+          inputContract: create(ContractReferenceSchema, {
+            contractRef: "contracts/account/v1/UpdateAccountTagsRequest",
+          }),
+          outputContract: create(ContractReferenceSchema, {
+            contractRef: "contracts/account/v1/UpdateAccountTagsResponse",
+          }),
+          invocationRef:
+            "grpc://account-manager/AccountInventoryService.UpdateAccountTags",
+        }),
       ],
     }),
     create(ServiceDescriptorSchema, {
