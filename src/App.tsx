@@ -11,6 +11,22 @@ import {
   Sun,
 } from "lucide-react"
 import { useMemo, useState } from "react"
+import { create } from "@bufbuild/protobuf"
+import {
+  AccountCredentialRefSchema,
+  AccountCredentialStatus,
+  AccountCredentialType,
+  AccountIdentifierKind,
+  AccountIdentifierSchema,
+  AccountLifecycleStatus,
+  AccountSchema,
+  type Account,
+} from "@byte-v-forge/contracts-ts/byte/v/forge/contracts/account/v1/account_pb"
+import {
+  AccountList,
+  AccountStatusFilter,
+  AccountSummary,
+} from "@byte-v-forge/uikit"
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query"
 
 import {
@@ -56,6 +72,60 @@ type CatalogService = ServiceDescriptor & {
 
 const queryClient = new QueryClient()
 const overviewKey = "overview"
+const localAccounts = [
+  create(AccountSchema, {
+    accountId: "acct_demo_active",
+    displayName: "GPT registration pool",
+    primaryIdentifier: create(AccountIdentifierSchema, {
+      kind: AccountIdentifierKind.EMAIL,
+      value: "pool@example.test",
+      verified: true,
+    }),
+    status: AccountLifecycleStatus.ACTIVE,
+    credentials: [
+      create(AccountCredentialRefSchema, {
+        credentialId: "cred_demo_password",
+        accountId: "acct_demo_active",
+        type: AccountCredentialType.PASSWORD,
+        status: AccountCredentialStatus.ACTIVE,
+        secretRef: "secret://account/acct_demo_active/password",
+      }),
+      create(AccountCredentialRefSchema, {
+        credentialId: "cred_demo_session",
+        accountId: "acct_demo_active",
+        type: AccountCredentialType.SESSION_COOKIE,
+        status: AccountCredentialStatus.ROTATION_REQUIRED,
+        secretRef: "secret://account/acct_demo_active/session",
+      }),
+    ],
+    labels: {
+      owner_service: "account-manager",
+      tier: "warm",
+    },
+  }),
+  create(AccountSchema, {
+    accountId: "acct_demo_locked",
+    displayName: "Recovery queue",
+    primaryIdentifier: create(AccountIdentifierSchema, {
+      kind: AccountIdentifierKind.EMAIL,
+      value: "recovery@example.test",
+    }),
+    status: AccountLifecycleStatus.RECOVERY_REQUIRED,
+    credentials: [
+      create(AccountCredentialRefSchema, {
+        credentialId: "cred_demo_recovery",
+        accountId: "acct_demo_locked",
+        type: AccountCredentialType.RECOVERY_CODE,
+        status: AccountCredentialStatus.ACTIVE,
+        secretRef: "secret://account/acct_demo_locked/recovery",
+      }),
+    ],
+    labels: {
+      owner_service: "account-manager",
+      tier: "recovery",
+    },
+  }),
+]
 
 function App() {
   return (
@@ -72,6 +142,12 @@ function Dashboard() {
   const [environment, setEnvironment] = useState("local")
   const [query, setQuery] = useState("")
   const [kindFilter, setKindFilter] = useState<"all" | CapabilityKind>("all")
+  const [accountStatusFilter, setAccountStatusFilter] = useState<
+    "all" | AccountLifecycleStatus
+  >("all")
+  const [selectedAccountId, setSelectedAccountId] = useState(
+    localAccounts[0]?.accountId
+  )
 
   const servicesQuery = useQuery({
     queryKey: ["service-catalog", environment],
@@ -125,6 +201,17 @@ function Dashboard() {
         .includes(keyword)
     })
   }, [activeServiceId, capabilityRows, kindFilter, query])
+
+  const visibleAccounts = useMemo(() => {
+    if (accountStatusFilter === "all") {
+      return localAccounts
+    }
+    return localAccounts.filter((account) => account.status === accountStatusFilter)
+  }, [accountStatusFilter])
+
+  const selectedAccount = localAccounts.find(
+    (account) => account.accountId === selectedAccountId
+  )
 
   const totalActive = services.reduce(
     (sum, service) => sum + service.activeCount,
@@ -180,7 +267,7 @@ function Dashboard() {
             </ScrollArea>
 
             <div className="border-t p-4 text-xs text-muted-foreground">
-              前端只消费服务目录，不硬编码业务服务动作。
+              目录视图随服务注册更新。
             </div>
           </div>
         </aside>
@@ -240,6 +327,28 @@ function Dashboard() {
                 </div>
               ) : null}
 
+              <div className="mt-6 rounded-lg border bg-card">
+                <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-sm font-medium">账号库存</div>
+                    <div className="text-xs text-muted-foreground">
+                      按状态筛选账号池，查看凭据引用。
+                    </div>
+                  </div>
+                  <AccountStatusFilter
+                    value={accountStatusFilter}
+                    onChange={setAccountStatusFilter}
+                  />
+                </div>
+                <AccountList
+                  accounts={visibleAccounts}
+                  selectedAccountId={selectedAccountId}
+                  onAccountSelect={(account: Account) =>
+                    setSelectedAccountId(account.accountId)
+                  }
+                />
+              </div>
+
               <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {services.map((service) => {
                   const active = activeServiceId === service.serviceId
@@ -289,7 +398,7 @@ function Dashboard() {
                   <div>
                     <div className="text-sm font-medium">能力目录</div>
                     <div className="text-xs text-muted-foreground">
-                      所有入口由目录服务返回，前端按 descriptor 渲染。
+                      按服务、类型和入口引用查看能力。
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -382,6 +491,19 @@ function Dashboard() {
                     <BoundaryLine label="健康语义" value="gRPC Health" />
                     <BoundaryLine label="调试发现" value="gRPC Reflection" />
                   </div>
+                </section>
+
+                <Separator />
+
+                <section>
+                  <div className="mb-3 text-sm font-medium">当前账号</div>
+                  {selectedAccount ? (
+                    <AccountSummary account={selectedAccount} compact />
+                  ) : (
+                    <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+                      暂无账号
+                    </div>
+                  )}
                 </section>
 
                 <Separator />

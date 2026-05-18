@@ -14,6 +14,9 @@ importers:
       '@byte-v-forge/contracts-ts':
         specifier: git+https://github.com/byte-v-forge/contracts-ts.git#v0.3.0
         version: https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/f41b8fd455c876bd54a0304b2d81a3938db1d3ce
+      '@byte-v-forge/uikit':
+        specifier: git+https://github.com/byte-v-forge/uikit.git#v0.2.5
+        version: https://codeload.github.com/byte-v-forge/uikit/tar.gz/2f49b7ada0687b17bef1fcd8abf7eb93a4729cf4(@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/f41b8fd455c876bd54a0304b2d81a3938db1d3ce)(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)
       '@fontsource-variable/geist':
         specifier: ^5.2.9
         version: 5.2.9
@@ -237,6 +240,15 @@ packages:
   '@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/f41b8fd455c876bd54a0304b2d81a3938db1d3ce':
     resolution: {tarball: https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/f41b8fd455c876bd54a0304b2d81a3938db1d3ce}
     version: 0.3.0
+
+  '@byte-v-forge/uikit@https://codeload.github.com/byte-v-forge/uikit/tar.gz/2f49b7ada0687b17bef1fcd8abf7eb93a4729cf4':
+    resolution: {tarball: https://codeload.github.com/byte-v-forge/uikit/tar.gz/2f49b7ada0687b17bef1fcd8abf7eb93a4729cf4}
+    version: 0.2.5
+    peerDependencies:
+      '@byte-v-forge/contracts-ts': ^0.3.0
+      react: ^19.0.0
+      react-dom: ^19.0.0
+      tailwindcss: ^4.0.0
 
   '@dotenvx/dotenvx@1.66.0':
     resolution: {integrity: sha512-qlQFhHUjhRDybrinqLAD0MClVZDOrsq80O8eD5iSjz3Qa/4f3Jg7SQrOaSobrRyP1QaWIYLGtGpj2c7H0D8NUw==}
@@ -1100,6 +1112,15 @@ packages:
 
   '@radix-ui/react-slot@1.2.3':
     resolution: {integrity: sha512-aeNmHnBxbi2St0au6VBVC7JXFlhLlOnvIIlePNniyUNAClzmtAUEY8/pBiK3iHjufOlwA+c20/8jngo7xcrg8A==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
+  '@radix-ui/react-slot@1.2.4':
+    resolution: {integrity: sha512-Jl+bCv8HxKnlTLVrcDE8zTMJ09R9/ukw4qBs/oZClOfoQk/cOTbDn+NceXfV7j09YPVQUryJPHurafcSg6EVKA==}
     peerDependencies:
       '@types/react': '*'
       react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
@@ -3509,6 +3530,20 @@ snapshots:
     dependencies:
       '@bufbuild/protobuf': 2.12.0
 
+  '@byte-v-forge/uikit@https://codeload.github.com/byte-v-forge/uikit/tar.gz/2f49b7ada0687b17bef1fcd8abf7eb93a4729cf4(@byte-v-forge/contracts-ts@https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/f41b8fd455c876bd54a0304b2d81a3938db1d3ce)(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0)':
+    dependencies:
+      '@byte-v-forge/contracts-ts': https://codeload.github.com/byte-v-forge/contracts-ts/tar.gz/f41b8fd455c876bd54a0304b2d81a3938db1d3ce
+      '@radix-ui/react-slot': 1.2.4(@types/react@19.2.14)(react@19.2.6)
+      class-variance-authority: 0.7.1
+      clsx: 2.1.1
+      lucide-react: 1.16.0(react@19.2.6)
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      tailwind-merge: 3.6.0
+      tailwindcss: 4.3.0
+    transitivePeerDependencies:
+      - '@types/react'
+
   '@dotenvx/dotenvx@1.66.0':
     dependencies:
       commander: 11.1.0
@@ -4379,6 +4414,13 @@ snapshots:
       '@types/react-dom': 19.2.3(@types/react@19.2.14)
 
   '@radix-ui/react-slot@1.2.3(@types/react@19.2.14)(react@19.2.6)':
+    dependencies:
+      '@radix-ui/react-compose-refs': 1.1.2(@types/react@19.2.14)(react@19.2.6)
+      react: 19.2.6
+    optionalDependencies:
+      '@types/react': 19.2.14
+
+  '@radix-ui/react-slot@1.2.4(@types/react@19.2.14)(react@19.2.6)':
     dependencies:
       '@radix-ui/react-compose-refs': 1.1.2(@types/react@19.2.14)(react@19.2.6)
       react: 19.2.6
