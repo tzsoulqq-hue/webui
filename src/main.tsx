@@ -137,6 +137,8 @@ type MailboxOAuthResponse = {
   error_message: string;
 };
 
+type MailboxRegisterResponse = MailboxOAuthResponse;
+
 type InboxMessage = {
   id: string;
   mailbox_email: string;
@@ -563,8 +565,12 @@ function App() {
   async function startMailboxRegistration() {
     setMailboxRegistering(true);
     try {
-      const resp = await api<{ started: boolean }>('/api/mailboxes/register', { method: 'POST', body: '{}' });
-      setToast({ kind: resp.started ? 'ok' : 'error', text: resp.started ? '手动注册邮箱已启动' : '手动注册邮箱未启动' });
+      const resp = await api<MailboxRegisterResponse>('/api/mailboxes/register', { method: 'POST', body: '{}' });
+      if (!resp.started || resp.error_message) {
+        setToast({ kind: 'error', text: resp.error_message || '手动注册邮箱未启动' });
+      } else {
+        setToast({ kind: 'ok', text: `手动注册邮箱已提交: ${short(resp.operation_id)}` });
+      }
       if (resp.started) await refresh();
     } catch (err) {
       setToast({ kind: 'error', text: errorText(err) });

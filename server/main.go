@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -39,8 +38,6 @@ type server struct {
 	jobClient             pb.JobServiceClient
 	paymentClient         pb.PaymentServiceClient
 	staticDir             string
-	mailboxRegisterMu     sync.Mutex
-	mailboxRegistering    bool
 }
 
 type createAccountRequest struct {
@@ -313,38 +310,23 @@ func (s *server) handleMailboxRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.mailboxRegisterMu.Lock()
-	if s.mailboxRegistering {
-		s.mailboxRegisterMu.Unlock()
-		writeError(w, http.StatusConflict, errors.New("mailbox registration is already running"))
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	resp, err := s.mailboxClient.RegisterMailbox(ctx, &pb.RegisterMailboxRequest{})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	s.mailboxRegistering = true
-	s.mailboxRegisterMu.Unlock()
 
-	go func() {
-		defer func() {
-			s.mailboxRegisterMu.Lock()
-			s.mailboxRegistering = false
-			s.mailboxRegisterMu.Unlock()
-		}()
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(envInt("MAILBOX_REGISTER_TIMEOUT_SECONDS", 1800))*time.Second)
-		defer cancel()
-		resp, err := s.mailboxClient.RegisterMailbox(ctx, &pb.RegisterMailboxRequest{})
-		if err != nil {
-			log.Printf("mailbox registration operation failed: %v", err)
-			return
-		}
-		if resp.GetErrorMessage() != "" {
-			log.Printf("mailbox registration operation=%s failed: %s", resp.GetOperationId(), resp.GetErrorMessage())
-			return
-		}
-		log.Printf("mailbox registration operation=%s completed success=%v exit_code=%d", resp.GetOperationId(), resp.GetSuccess(), resp.GetExitCode())
-	}()
-
-	writeJSON(w, http.StatusAccepted, map[string]any{
-		"started": true,
-		"backend": "mailbox-api",
+	statusCode := http.StatusAccepted
+	if !resp.GetStarted() || resp.GetErrorMessage() != "" {
+		statusCode = http.StatusBadGateway
+	}
+	writeJSON(w, statusCode, map[string]any{
+		"started":       resp.GetStarted(),
+		"operation_id":  resp.GetOperationId(),
+		"error_message": resp.GetErrorMessage(),
+		"backend":       "mailbox-api",
 	})
 }
 
