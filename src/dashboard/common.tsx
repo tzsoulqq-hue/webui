@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { TableCell, TableRow } from '@/components/ui/table';
 import type { Account, Mailbox } from './types';
-import { accountIsActivated, authStatus, buttonHint, copyText, plusText, statusText, tierText, tokenText } from './utils';
+import { accountIsActivated, authStatus, buttonHint, copyText, statusText, tierEligibilityText, tokenText } from './utils';
 
 export function NavItem({ active, icon, label, count, countLabel, onClick }: {
   active: boolean;
@@ -185,26 +185,16 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge className={`badge ${cls}`} variant={variant} title={status || '-'}>{label}</Badge>;
 }
 
-export function TierBadge({ tier }: { tier: string }) {
-  const value = tierText(tier);
-  const normalized = String(tier || '').trim().toLowerCase();
-  const cls = normalized === 'free' ? 'mid' : normalized ? 'good' : 'mid';
-  return <Badge className={`badge ${cls}`} variant={cls === 'good' ? 'default' : 'secondary'}>{value}</Badge>;
-}
-
 export function TierEligibilityBadges({ account }: { account: Account }) {
-  return (
-    <div className="inlineBadges">
-      <TierBadge tier={account.tier} />
-      {!accountIsActivated(account) && <TrialBadge eligible={account.plus_trial_eligible} />}
-    </div>
-  );
-}
-
-export function TrialBadge({ eligible }: { eligible?: boolean }) {
-  if (eligible === true) return <Badge className="badge good">0元</Badge>;
-  if (eligible === false) return <Badge className="badge bad" variant="destructive">非0元</Badge>;
-  return <Badge className="badge mid" variant="secondary">未知</Badge>;
+  const activated = accountIsActivated(account);
+  const tier = String(account.tier || '').trim().toLowerCase();
+  const cls = !activated && account.plus_trial_eligible === false
+    ? 'bad'
+    : activated || (!!tier && tier !== 'free') || account.plus_trial_eligible === true
+      ? 'good'
+      : 'mid';
+  const variant = cls === 'bad' ? 'destructive' : cls === 'good' ? 'default' : 'secondary';
+  return <Badge className={`badge ${cls}`} variant={variant}>{tierEligibilityText(account)}</Badge>;
 }
 
 export function TokenBadge({ mailbox }: { mailbox: Mailbox }) {

@@ -407,7 +407,7 @@ export function countAllocatableEmailAllocations(allocations: GPTEmailAllocation
   )).length;
 }
 
-export function mailboxMatchesFilter(mailbox: Mailbox, allMailboxes: Mailbox[], _allocations: GPTEmailAllocation[], filter: string) {
+export function mailboxMatchesFilter(mailbox: Mailbox, allMailboxes: Mailbox[], filter: string) {
   if (!filter) return true;
   const aliases = aliasesForMailbox(allMailboxes, mailbox);
   return authStatus(mailbox) === filter || aliases.some((alias) => authStatus(alias) === filter);

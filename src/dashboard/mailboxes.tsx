@@ -5,15 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { BanDetection, GPTEmailAllocation, InboxResult, Job, Mailbox, MailboxDetailTab, MailboxOperation } from './types';
+import type { BanDetection, InboxResult, Job, Mailbox, MailboxDetailTab, MailboxOperation } from './types';
 import { EmptyBlock, EmptyTableRow, KV, StatusBadge } from './common';
 import { LinkedWorkflowButton } from './jobs';
-import { actionText, aliasesForMailbox, allocationForEmail, api, authStatus, buttonHint, compactCellError, compactToast, errorText, formatEmailList, formatJobTime, formatUnix, latestOtpForEmail, mailboxOperationActionText, mailboxOperationMeta, mask, maskEmail, maskPreview, normalizeUiEmail, short, statusText, stepText, tokenText } from './utils';
+import { actionText, aliasesForMailbox, api, authStatus, buttonHint, compactCellError, compactToast, errorText, formatEmailList, formatJobTime, formatUnix, latestOtpForEmail, mailboxOperationActionText, mailboxOperationMeta, mask, maskEmail, maskPreview, normalizeUiEmail, short, statusText, stepText, tokenText } from './utils';
 
-export function MailboxPanel({ mailboxes, allMailboxes, allocations, selected, busy, showSecrets, oauthing, runningWorkflowByEmail, onSelect, onOpenWorkflow, onOAuth, onDelete, onDone, onError }: {
+export function MailboxPanel({ mailboxes, allMailboxes, selected, busy, showSecrets, oauthing, runningWorkflowByEmail, onSelect, onOpenWorkflow, onOAuth, onDelete, onDone, onError }: {
   mailboxes: Mailbox[];
   allMailboxes: Mailbox[];
-  allocations: GPTEmailAllocation[];
   selected?: string;
   busy: boolean;
   showSecrets: boolean;
@@ -90,7 +89,7 @@ export function MailboxPanel({ mailboxes, allMailboxes, allocations, selected, b
 
   return (
     <>
-      <MailboxStatusStrip mailboxes={allMailboxes} allocations={allocations} />
+      <MailboxStatusStrip mailboxes={allMailboxes} />
       <div className="mailboxImportHeader">
         <div>
           <strong>主邮箱列表</strong>
@@ -131,18 +130,16 @@ export function MailboxPanel({ mailboxes, allMailboxes, allocations, selected, b
       <div className="tableWrap">
         <Table className="responsiveTable mailboxTable">
           <TableHeader>
-            <TableRow><TableHead>主邮箱</TableHead><TableHead>最近邮件</TableHead><TableHead>占用</TableHead><TableHead>认证状态</TableHead><TableHead>更新</TableHead><TableHead>错误</TableHead><TableHead>操作</TableHead></TableRow>
+            <TableRow><TableHead>主邮箱</TableHead><TableHead>最近邮件</TableHead><TableHead>认证状态</TableHead><TableHead>更新</TableHead><TableHead>错误</TableHead><TableHead>操作</TableHead></TableRow>
           </TableHeader>
           <TableBody>
-            {mailboxes.length === 0 && <EmptyTableRow colSpan={7} text="暂无符合筛选条件的主邮箱。" />}
+            {mailboxes.length === 0 && <EmptyTableRow colSpan={6} text="暂无符合筛选条件的主邮箱。" />}
             {mailboxes.map((mailbox) => {
               const isOAuthing = oauthing === mailbox.email_address || oauthing === '*';
               const canOAuth = mailbox.is_primary && !!mailbox.password;
               const oauthLabel = authStatus(mailbox) === 'AUTHORIZED' ? '重新 OAuth' : '补 OAuth';
               const currentWorkflow = runningWorkflowByEmail.get(normalizeUiEmail(mailbox.email_address));
-              const allocation = allocationForEmail(allocations, mailbox.email_address);
-              const usageStatus = allocation?.status || '-';
-              const errorText = allocation?.last_error || mailbox.last_error || '-';
+              const errorText = mailbox.last_error || '-';
               return (
                 <TableRow key={mailbox.email_address} className={selected === mailbox.email_address ? 'selected' : ''} onClick={() => onSelect(mailbox)}>
                   <TableCell data-label="主邮箱">
@@ -152,7 +149,6 @@ export function MailboxPanel({ mailboxes, allMailboxes, allocations, selected, b
                     </div>
                   </TableCell>
                   <TableCell data-label="最近邮件"><MailboxActivityCell mailbox={mailbox} showSecrets={showSecrets} /></TableCell>
-                  <TableCell data-label="占用"><StatusBadge status={usageStatus} /></TableCell>
                   <TableCell data-label="认证状态"><StatusBadge status={authStatus(mailbox)} /></TableCell>
                   <TableCell data-label="更新">{formatUnix(mailbox.updated_at)}</TableCell>
                   <TableCell data-label="错误" className="mailboxErrorCell" title={errorText}>
@@ -321,22 +317,10 @@ function BanResults({ bans, showSecrets }: {
   );
 }
 
-export function MailboxStatusStrip({ mailboxes, allocations }: { mailboxes: Mailbox[]; allocations: GPTEmailAllocation[] }) {
-  const usageItems = ['AVAILABLE', 'ASSIGNED', 'REGISTERED', 'USER_ALREADY_EXISTS', 'REGISTRATION_FAILED', 'BLOCKED'];
+export function MailboxStatusStrip({ mailboxes }: { mailboxes: Mailbox[] }) {
   const authItems = ['AUTHORIZED', 'OAUTH_PENDING', 'AUTH_FAILED', 'NEEDS_MANUAL_VERIFICATION'];
   return (
     <div className="mailboxStatusStrip" aria-label="邮箱状态汇总">
-      <div className="statusStripGroup">
-        <h4>占用状态</h4>
-        <div className="statusStripGrid">
-          {usageItems.map((status) => (
-            <div key={status}>
-              <strong>{allocations.filter((allocation) => allocation.status === status).length}</strong>
-              <span>{statusText(status)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
       <div className="statusStripGroup">
         <h4>OAuth 状态</h4>
         <div className="statusStripGrid">
@@ -352,9 +336,8 @@ export function MailboxStatusStrip({ mailboxes, allocations }: { mailboxes: Mail
   );
 }
 
-function MailboxAliasesSection({ aliases, allocations, showSecrets, onDelete }: {
+function MailboxAliasesSection({ aliases, showSecrets, onDelete }: {
   aliases: Mailbox[];
-  allocations: GPTEmailAllocation[];
   showSecrets: boolean;
   onDelete: (mailbox: Mailbox) => Promise<void>;
 }) {
@@ -365,31 +348,26 @@ function MailboxAliasesSection({ aliases, allocations, showSecrets, onDelete }: 
         <span className="muted">{aliases.length}</span>
       </div>
       <div className="aliasList">
-        {aliases.map((alias) => {
-          const allocation = allocationForEmail(allocations, alias.email_address);
-          return (
-            <div className="aliasItem" key={alias.email_address}>
-              <div className="aliasIdentity">
-                <strong>{showSecrets ? alias.email_address : maskEmail(alias.email_address)}</strong>
-                <span><StatusBadge status={allocation?.status || '-'} /> <StatusBadge status={authStatus(alias)} /></span>
-              </div>
-              <MailboxActivityCell mailbox={alias} showSecrets={showSecrets} />
-              <Button className="iconButton dangerButton" {...buttonHint('删除 Alias')} onClick={() => onDelete(alias)}>
-                <Trash2 size={14} />
-              </Button>
+        {aliases.map((alias) => (
+          <div className="aliasItem" key={alias.email_address}>
+            <div className="aliasIdentity">
+              <strong>{showSecrets ? alias.email_address : maskEmail(alias.email_address)}</strong>
+              <span><StatusBadge status={authStatus(alias)} /></span>
             </div>
-          );
-        })}
+            <MailboxActivityCell mailbox={alias} showSecrets={showSecrets} />
+            <Button className="iconButton dangerButton" {...buttonHint('删除 Alias')} onClick={() => onDelete(alias)}>
+              <Trash2 size={14} />
+            </Button>
+          </div>
+        ))}
         {aliases.length === 0 && <div className="inboxEmpty">暂无 Alias 邮箱。</div>}
       </div>
     </section>
   );
 }
 
-export function MailboxDetails({ mailbox, allocation, allocations, showSecrets, inboxResult, bans, aliases, inboxLoading, onCopy, onFetchInbox, onDelete }: {
+export function MailboxDetails({ mailbox, showSecrets, inboxResult, bans, aliases, inboxLoading, onCopy, onFetchInbox, onDelete }: {
   mailbox: Mailbox;
-  allocation?: GPTEmailAllocation;
-  allocations: GPTEmailAllocation[];
   showSecrets: boolean;
   inboxResult?: InboxResult;
   bans: BanDetection[];
@@ -401,7 +379,6 @@ export function MailboxDetails({ mailbox, allocation, allocations, showSecrets, 
 }) {
   const [activeTab, setActiveTab] = useState<MailboxDetailTab>('overview');
   const inboxMessageCount = inboxResult?.messages?.length || 0;
-  const usageStatus = allocation?.status || '-';
 
   useEffect(() => {
     setActiveTab('overview');
@@ -424,7 +401,6 @@ export function MailboxDetails({ mailbox, allocation, allocations, showSecrets, 
                 <strong>{showSecrets ? mailbox.email_address : maskEmail(mailbox.email_address)}</strong>
               </div>
               <div className="summaryBadges">
-                <StatusBadge status={usageStatus} />
                 <StatusBadge status={authStatus(mailbox)} />
               </div>
             </div>
@@ -437,8 +413,6 @@ export function MailboxDetails({ mailbox, allocation, allocations, showSecrets, 
           <h3>邮箱</h3>
           <KV label="邮箱" value={showSecrets ? mailbox.email_address : maskEmail(mailbox.email_address)} copyValue={mailbox.email_address} copyDisabled={!mailbox.email_address} masked={!showSecrets} onCopy={onCopy} />
           <KV label="密码" value={showSecrets ? mailbox.password : mask(mailbox.password)} copyValue={mailbox.password} copyDisabled={!mailbox.password} masked={!showSecrets} mono onCopy={onCopy} />
-          <KV label="占用" value={statusText(usageStatus)} copyValue={usageStatus} onCopy={onCopy} />
-          <KV label="可分裂" value={allocation?.splittable ? '是' : '否'} onCopy={onCopy} />
           <KV label="OAuth" value={statusText(authStatus(mailbox))} onCopy={onCopy} />
           <KV label="Token" value={tokenText(mailbox)} onCopy={onCopy} />
           <KV label="Alias 数" value={String(aliases.length)} onCopy={onCopy} />
@@ -449,7 +423,7 @@ export function MailboxDetails({ mailbox, allocation, allocations, showSecrets, 
           <KV label="OTP 时间" value={formatUnix(mailbox.latest_otp_received_at_unix)} onCopy={onCopy} />
           <KV label="创建时间" value={formatUnix(mailbox.created_at)} onCopy={onCopy} />
           <KV label="更新时间" value={formatUnix(mailbox.updated_at)} onCopy={onCopy} />
-          <KV label="错误" value={allocation?.last_error || mailbox.last_error || '-'} onCopy={onCopy} />
+          <KV label="错误" value={mailbox.last_error || '-'} onCopy={onCopy} />
           <div className="buttonRow detailActions">
             <Button className="dangerButton" onClick={() => onDelete(mailbox)}>
               <Trash2 size={14} /> {mailbox.is_primary ? '删除主邮箱' : '删除 Alias'}
@@ -460,7 +434,7 @@ export function MailboxDetails({ mailbox, allocation, allocations, showSecrets, 
 
       {activeTab === 'aliases' && (
         <div className="mailboxTabPanel">
-          <MailboxAliasesSection aliases={aliases} allocations={allocations} showSecrets={showSecrets} onDelete={onDelete} />
+          <MailboxAliasesSection aliases={aliases} showSecrets={showSecrets} onDelete={onDelete} />
         </div>
       )}
 

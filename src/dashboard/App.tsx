@@ -10,7 +10,7 @@ import { DetailDrawer, NavItem, OpenAIIcon, PanelHeader, PanelNotice, WorkflowDi
 import { GoPayStateStatusPanel } from './gopay';
 import { JobDetails, JobTable, WorkflowSummary } from './jobs';
 import { MailboxDetails, MailboxOperationStrip, MailboxPanel, MailboxStatusStrip } from './mailboxes';
-import { accountActivationChannel, actionText, addBalanceMethodLabel, addBalanceMethodValue, aliasesForMailbox, allocationForEmail, api, authStatus, bansForMailbox, canonicalUiEmail, compactToast, copyText, countAllocatableEmailAllocations, errorText, formatUnix, goPayAddBalancePayload, goPayPaymentChannelLabel, goPayPaymentUserId, inboxResultForMailbox, isEnvelopeActivation, isManualTransferActivation, isRekberinajaActivation, isRunningSnapshot, jobSnapshotMatchesStatus, latestJobMap, latestOtpForEmail, mailboxContextForEmail, mailboxMatchesFilter, mailboxWorkflowEmail, mask, maskEmail, mergeJobEvents, mergeJobSnapshots, normalizeUiEmail, objectValue, paymentChannelValue, short, statusText, stringValue, loginActionLabel } from './utils';
+import { accountActivationChannel, actionText, addBalanceMethodLabel, addBalanceMethodValue, aliasesForMailbox, api, authStatus, bansForMailbox, canonicalUiEmail, compactToast, copyText, errorText, formatUnix, goPayAddBalancePayload, goPayPaymentChannelLabel, goPayPaymentUserId, inboxResultForMailbox, isEnvelopeActivation, isManualTransferActivation, isRekberinajaActivation, isRunningSnapshot, jobSnapshotMatchesStatus, latestJobMap, latestOtpForEmail, mailboxContextForEmail, mailboxMatchesFilter, mailboxWorkflowEmail, mask, maskEmail, mergeJobEvents, mergeJobSnapshots, normalizeUiEmail, objectValue, paymentChannelValue, short, statusText, stringValue, loginActionLabel } from './utils';
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -534,8 +534,7 @@ export default function App() {
   }
 
   const primaryMailboxes = mailboxes.filter((mailbox) => mailbox.is_primary);
-  const visiblePrimaryMailboxes = primaryMailboxes.filter((mailbox) => mailboxMatchesFilter(mailbox, mailboxes, gptEmailAllocations, mailboxStatus));
-  const allocatableMailboxCount = countAllocatableEmailAllocations(gptEmailAllocations);
+  const visiblePrimaryMailboxes = primaryMailboxes.filter((mailbox) => mailboxMatchesFilter(mailbox, mailboxes, mailboxStatus));
   const missingOAuthCount = primaryMailboxes.filter((mailbox) => (
     mailbox.password && authStatus(mailbox) !== 'AUTHORIZED' && authStatus(mailbox) !== 'NEEDS_MANUAL_VERIFICATION'
   )).length;
@@ -543,7 +542,6 @@ export default function App() {
   const selectedMailboxInbox = selectedMailbox ? inboxResultForMailbox(inboxResponse, selectedMailbox.email_address) : undefined;
   const selectedMailboxBans = selectedMailbox ? bansForMailbox(inboxResponse, selectedMailbox.email_address) : [];
   const selectedMailboxAliases = selectedMailbox ? aliasesForMailbox(mailboxes, selectedMailbox) : [];
-  const selectedMailboxAllocation = selectedMailbox ? allocationForEmail(gptEmailAllocations, selectedMailbox.email_address) : undefined;
   const selectedAccountMailboxContext = selectedAccount ? mailboxContextForEmail(mailboxes, gptEmailAllocations, selectedAccount.email) : null;
   const selectedAccountLatestOtp = selectedAccount ? latestOtpForEmail(inboxResponse, mailboxes, selectedAccount.email) : null;
   const gptWorkflowJobs = jobs.filter((job) => gptWorkflowActions.has(job.action));
@@ -575,7 +573,7 @@ export default function App() {
         <nav className="navRail" aria-label="主导航">
           <NavItem active={activeView === 'accounts'} icon={<OpenAIIcon size={17} />} label="GPT账号" count={accounts.length} countLabel="全部 GPT 账号数" onClick={() => openView('accounts')} />
           <NavItem active={activeView === 'gopay'} icon={<RefreshCcw size={17} />} label="GoPay" count={runningGoPayRebindCount} countLabel="运行中的 GoPay 换绑任务" onClick={() => openView('gopay')} />
-          <NavItem active={activeView === 'mailboxes'} icon={<Inbox size={17} />} label="邮箱管理" count={allocatableMailboxCount} countLabel="可分配邮箱源数" onClick={() => openView('mailboxes')} />
+          <NavItem active={activeView === 'mailboxes'} icon={<Inbox size={17} />} label="邮箱管理" count={primaryMailboxes.length} countLabel="主邮箱数" onClick={() => openView('mailboxes')} />
           <NavItem active={activeView === 'jobs'} icon={<ListChecks size={17} />} label="工作流" count={runningJobCount} countLabel="运行中的工作流任务" onClick={() => openView('jobs')} />
           <div className="navRailFooter">
             <Button className="secondaryButton navRefresh" onClick={refresh} disabled={busy}>
@@ -682,7 +680,6 @@ export default function App() {
                 <MailboxPanel
                   mailboxes={visiblePrimaryMailboxes}
                   allMailboxes={primaryMailboxes}
-                  allocations={gptEmailAllocations}
                   selected={selectedMailbox?.email_address}
                   busy={busy}
                   showSecrets={showSecrets}
@@ -744,7 +741,7 @@ export default function App() {
                         <Play size={16} /> {mailboxRegistering ? '启动中' : '启动注册'}
                       </Button>
                     </div>
-                    <MailboxStatusStrip mailboxes={primaryMailboxes} allocations={gptEmailAllocations} />
+                    <MailboxStatusStrip mailboxes={primaryMailboxes} />
                     <JobTable jobs={jobsForWorkflowTab} selected={selectedJob?.job_id} emptyText="暂无邮箱工作流" onSelect={selectJob} onGoPayRebindRetry={retryGoPayPaymentRebind} />
                   </TabsContent>
                 </Tabs>
@@ -801,8 +798,6 @@ export default function App() {
             inboxResult={selectedMailboxInbox}
             bans={selectedMailboxBans}
             aliases={selectedMailboxAliases}
-            allocation={selectedMailboxAllocation}
-            allocations={gptEmailAllocations}
             inboxLoading={inboxLoading}
             onCopy={copyField}
             onFetchInbox={fetchMailboxInbox}
