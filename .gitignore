@@ -1,6 +1,7 @@
 node_modules/
 dist/
 src/proto/
+src/dashboard/modules/
 server/pb/
 *.tsbuildinfo
 *.log

@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package dashboard;
+
+option go_package = "./;pb";
+
+enum DashboardNavSection {
+  DASHBOARD_NAV_SECTION_UNSPECIFIED = 0;
+  DASHBOARD_NAV_SECTION_MAIN = 1;
+  DASHBOARD_NAV_SECTION_LAB = 2;
+}
+
+message DashboardModuleManifest {
+  string id = 1;
+  repeated DashboardNavEntry nav = 2;
+}
+
+message DashboardNavEntry {
+  string key = 1;
+  string label = 2;
+  string icon = 3;
+  DashboardNavSection section = 4;
+  repeated string required_services = 5;
+  int32 order = 6;
+}
+
+enum DashboardServiceProbeKind {
+  DASHBOARD_SERVICE_PROBE_KIND_UNSPECIFIED = 0;
+  DASHBOARD_SERVICE_PROBE_HTTP = 1;
+  DASHBOARD_SERVICE_PROBE_TCP = 2;
+}
+
+message DashboardServiceProbe {
+  string name = 1;
+  DashboardServiceProbeKind kind = 2;
+  string target = 3;
+  string method = 4;
+  int32 timeout_ms = 5;
+}
+
+message DashboardServiceStatusConfig {
+  repeated DashboardServiceProbe services = 1;
+}
+
+enum DashboardServiceStatusState {
+  DASHBOARD_SERVICE_STATUS_STATE_UNSPECIFIED = 0;
+  DASHBOARD_SERVICE_AVAILABLE = 1;
+  DASHBOARD_SERVICE_UNAVAILABLE = 2;
+  DASHBOARD_SERVICE_UNKNOWN = 3;
+}
+
+message DashboardServiceStatus {
+  string name = 1;
+  DashboardServiceStatusState status = 2;
+  string message = 3;
+  int64 checked_at_unix = 4;
+}
+
+message DashboardServiceStatusResponse {
+  repeated DashboardServiceStatus services = 1;
+}

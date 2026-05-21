@@ -1,0 +1,39 @@
+
+pre {
+  max-height: 220px;
+  overflow: auto;
+  background: #f6f8fb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+
+@media (max-width: 1180px) {
+  html, body, #root { overflow: auto; }
+  .shell {
+    min-height: 100vh;
+    height: auto;
+    overflow: visible;
+  }
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    overflow: visible;
+  }
+  .contentPane {
+    overflow: visible;
+  }
+  .panel { min-height: 320px; }
+  .details { grid-template-columns: 1fr; }
+  .recordCard {
+    grid-template-columns: 1fr;
+  }
+  .recordActions {
+    min-width: 0;
+    max-width: none;
+    justify-content: flex-end;
+  }
+}

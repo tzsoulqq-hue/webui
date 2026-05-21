@@ -1,0 +1,98 @@
+
+.panelNotice [data-slot="alert-description"] {
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+
+
+.panelNotice.error {
+  border-color: #f2c7c1;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+
+.panelNotice.info {
+  color: var(--app-accent);
+}
+
+
+.workspace {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+
+.singlePaneWorkspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+
+.panel {
+  min-width: 0;
+  border: 0;
+  background: var(--surface);
+  border-radius: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: none;
+}
+
+
+.panelHeader {
+  justify-content: space-between;
+  padding: 6px 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-weight: 650;
+  min-height: 42px;
+  background: transparent;
+  color: #2f2923;
+}
+
+.panelHeader > div { display: flex; align-items: center; gap: 8px; }
+
+.panelHeader select,
+.panelToolbar select { width: 150px; }
+
+
+.panelToolbar {
+  justify-content: flex-end;
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+.compactInput {
+  width: 150px;
+  min-width: 130px;
+}
+
+
+.secondaryButton {
+  background: #f6f4ef;
+  color: #3e372f;
+}
+
+
+.secondaryButton:hover:not(:disabled) {
+  background: #eee9df;
+}
+
+
+.dangerButton {
+  color: var(--danger);
+  border-color: #f2c7c1;
+  background: var(--danger-soft);
+}
+

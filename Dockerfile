@@ -5,13 +5,17 @@ RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debi
     && apt-get update \
     && apt-get install -y --no-install-recommends libprotobuf-dev protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
-COPY package.json package-lock.json* ./
+COPY webui/package.json webui/package-lock.json* ./
 RUN npm ci
-COPY index.html vite.config.ts tsconfig.json components.json ./
-COPY proto ./proto
-COPY scripts ./scripts
-COPY src ./src
-RUN GENERATE_GO_PROTO=false npm run build
+COPY webui/index.html webui/vite.config.ts webui/tsconfig.json webui/components.json ./
+COPY webui/public ./public
+COPY gpt/proto /gpt/proto
+COPY mailbox/proto /mailbox/proto
+COPY sms/proto /sms/proto
+COPY webui/proto ./proto
+COPY webui/scripts ./scripts
+COPY webui/src ./src
+RUN SOURCE_ROOT=/ GENERATE_GO_PROTO=false npm run build
 
 FROM docker.m.daocloud.io/library/golang:1.26-alpine AS go-builder
 
@@ -22,14 +26,27 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
     && apk add --no-cache git protobuf-dev \
     && go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11 \
     && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
-COPY server/go.mod server/go.sum* ./
+COPY webui/server/go.mod webui/server/go.sum* ./
 RUN go mod download
-COPY proto ./proto
-COPY server ./
+COPY gpt/proto ./proto
+COPY webui/proto/dashboard.proto ./proto/dashboard.proto
+COPY mailbox/proto/email.proto ./proto/email.proto
+COPY mailbox/proto/mailbox_service.proto ./proto/mailbox_service.proto
+COPY sms/proto/byte ./proto/byte
+COPY webui/server ./
 COPY --from=web-builder /web/dist ./web/dist
 RUN mkdir -p pb \
     && rm -f pb/*.pb.go pb/*_grpc.pb.go \
-    && protoc -I proto -I /usr/include --go_out=pb --go-grpc_out=pb proto/*.proto
+    && protoc -I proto -I /usr/include \
+      --go_opt=Mbyte/v/forge/contracts/sms/v1/sms.proto=./\;pb \
+      --go_opt=Mbyte/v/forge/sms/internal/v1/sms_internal.proto=./\;pb \
+      --go_out=pb \
+      --go-grpc_opt=Mbyte/v/forge/contracts/sms/v1/sms.proto=./\;pb \
+      --go-grpc_opt=Mbyte/v/forge/sms/internal/v1/sms_internal.proto=./\;pb \
+      --go-grpc_out=pb \
+      proto/*.proto \
+      proto/byte/v/forge/contracts/sms/v1/sms.proto \
+      proto/byte/v/forge/sms/internal/v1/sms_internal.proto
 RUN go build -o webui .
 
 FROM docker.m.daocloud.io/library/alpine:latest

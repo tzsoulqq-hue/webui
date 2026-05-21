@@ -1,0 +1,53 @@
+
+@media (max-width: 640px) {
+  .shell { padding: 0; }
+  .contentPane { padding: 12px; }
+  .metrics { grid-template-columns: 1fr; }
+  .metric { padding: 12px; }
+  .panelHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .headerControls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .headerControls select,
+  .headerControls .compactInput,
+  .panelHeader select,
+  .panelToolbar select {
+    width: 100%;
+  }
+  .emptyTableRow td {
+    display: block;
+  }
+  .emptyTableRow td::before {
+    content: none;
+  }
+  .rowActions {
+    width: 100%;
+  }
+  .rowButtonText {
+    flex: 1;
+  }
+  .rowButtonText span {
+    max-width: none;
+  }
+  .appDrawer {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .kv,
+  .editLine {
+    grid-template-columns: 72px minmax(0, 1fr) 34px;
+  }
+  .editLine {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+  .editLine .copyButton,
+  .editLine button:last-child {
+    grid-column: 2;
+    width: 100%;
+  }
+  th, td { padding: 9px; }
+}

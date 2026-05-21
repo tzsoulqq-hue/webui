@@ -1,0 +1,75 @@
+
+.recordList {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 14px 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
+  align-content: start;
+  align-items: stretch;
+  gap: 8px;
+  background: var(--surface);
+}
+
+
+.wideRecordList {
+  grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
+}
+
+
+.recordCard {
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+
+.recordCard.clickable {
+  cursor: pointer;
+}
+
+
+.recordCard.clickable:hover {
+  border-color: #d6cec0;
+  background: #fbfaf7;
+}
+
+
+.recordCard.selected {
+  border-color: var(--app-accent);
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--app-accent);
+}
+
+
+.recordCard:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
+}
+
+
+.recordMain {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+
+.recordTop {
+  min-width: 0;
+  min-height: 32px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}

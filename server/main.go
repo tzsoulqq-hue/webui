@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"webui/server/pb"
@@ -34,15 +35,18 @@ type server struct {
 	paymentWorkflowClient pb.PaymentWorkflowServiceClient
 	gopayAppClient        pb.GoPayAppWorkflowServiceClient
 	mailboxClient         pb.MailboxServiceClient
+	smsAdminClient        pb.SmsProviderAdminServiceClient
 	otpClient             pb.OTPServiceClient
 	jobClient             pb.JobServiceClient
 	paymentClient         pb.PaymentServiceClient
+	dashboardServices     *dashboardServiceRegistry
 	staticDir             string
 }
 
 type createAccountRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email         string `json:"email"`
+	Password      string `json:"password"`
+	EmailStrategy string `json:"email_strategy"`
 }
 
 type upsertMailboxRequest struct {
@@ -67,6 +71,12 @@ type mailboxInboxRequest struct {
 	LimitPerMailbox int32  `json:"limit_per_mailbox"`
 	MaxMailboxes    int32  `json:"max_mailboxes"`
 	EmailAddress    string `json:"email_address"`
+	ParserProfile   string `json:"parser_profile"`
+}
+
+type accountMailboxSyncRequest struct {
+	LimitPerMailbox int32 `json:"limit_per_mailbox"`
+	AccountLimit    int32 `json:"account_limit"`
 }
 
 type submitJobOTPRequest struct {
@@ -110,34 +120,54 @@ func main() {
 	}
 	defer mailboxConn.Close()
 
+	smsConn, err := newGRPCClient(envDefault("SMS_ADDR", "sms-service:50051"))
+	if err != nil {
+		log.Fatalf("connect sms: %v", err)
+	}
+	defer smsConn.Close()
+
 	s := &server{
 		accountClient:         pb.NewAccountDatabaseServiceClient(accountConn),
 		accountWorkflowClient: pb.NewAccountWorkflowServiceClient(workflowConn),
 		paymentWorkflowClient: pb.NewPaymentWorkflowServiceClient(workflowConn),
 		gopayAppClient:        pb.NewGoPayAppWorkflowServiceClient(workflowConn),
 		mailboxClient:         pb.NewMailboxServiceClient(mailboxConn),
+		smsAdminClient:        pb.NewSmsProviderAdminServiceClient(smsConn),
 		otpClient:             pb.NewOTPServiceClient(workflowConn),
 		jobClient:             pb.NewJobServiceClient(workflowConn),
 		paymentClient:         pb.NewPaymentServiceClient(paymentConn),
+		dashboardServices:     newDashboardServiceRegistry(loadDashboardServiceStatusConfig()),
 		staticDir:             envDefault("STATIC_DIR", "web/dist"),
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/health", s.handleHealth)
+	mux.HandleFunc("/api/service-status", s.handleServiceStatus)
+	mux.HandleFunc("/api/accounts/events", s.streamAccountEvents)
+	mux.HandleFunc("/api/accounts/mailbox/sync", s.handleAccountMailboxSync)
 	mux.HandleFunc("/api/accounts", s.handleAccounts)
 	mux.HandleFunc("/api/accounts/", s.handleAccount)
 	mux.HandleFunc("/api/mailboxes/register", s.handleMailboxRegister)
 	mux.HandleFunc("/api/mailboxes/oauth", s.handleMailboxOAuth)
 	mux.HandleFunc("/api/mailboxes/inbox", s.handleMailboxInbox)
+	mux.HandleFunc("/api/mailboxes/events", s.streamMailboxEvents)
+	mux.HandleFunc("/api/mailbox-domains", s.handleMailboxDomains)
+	mux.HandleFunc("/api/mailbox-provider-capabilities", s.handleMailboxProviderCapabilities)
 	mux.HandleFunc("/api/mailbox-operations/", s.handleMailboxOperation)
 	mux.HandleFunc("/api/mailbox-operations", s.handleMailboxOperations)
 	mux.HandleFunc("/api/mailboxes/", s.handleMailbox)
 	mux.HandleFunc("/api/mailboxes", s.handleMailboxes)
+	mux.HandleFunc("/api/sms/provider-configs/", s.handleSMSProviderConfig)
+	mux.HandleFunc("/api/sms/provider-configs", s.handleSMSProviderConfigs)
+	mux.HandleFunc("/api/sms/activations/", s.handleSMSActivation)
+	mux.HandleFunc("/api/sms/activations", s.handleSMSActivations)
 	mux.HandleFunc("/api/gpt-email-allocations", s.handleGPTEmailAllocations)
 	mux.HandleFunc("/api/jobs", s.handleJobs)
 	mux.HandleFunc("/api/jobs/events", s.streamJobsEvents)
 	mux.HandleFunc("/api/jobs/", s.handleJob)
 	mux.HandleFunc("/api/gopay/state", s.handleGoPayState)
+	mux.HandleFunc("/api/gopay/profile", s.handleGoPayProfile)
+	mux.HandleFunc("/api/gopay/user/", s.handleGoPayUserAction)
 	mux.HandleFunc("/api/workflows/register", s.handleRegister)
 	mux.HandleFunc("/api/workflows/activate", s.handleActivate)
 	mux.HandleFunc("/api/workflows/autopay", s.handleAutopay)
@@ -155,6 +185,57 @@ func main() {
 	if err := http.ListenAndServe(addr, withCORS(mux)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func (s *server) handleMailboxDomains(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		resp, err := s.mailboxClient.ListMailboxDomains(r.Context(), &pb.ListMailboxDomainsRequest{})
+		if err != nil {
+			writeError(w, http.StatusBadGateway, err)
+			return
+		}
+		if resp.GetErrorMessage() != "" {
+			writeError(w, http.StatusBadGateway, errors.New(resp.GetErrorMessage()))
+			return
+		}
+		writeJSON(w, http.StatusOK, resp.GetDomains())
+	case http.MethodPost:
+		var req pb.SyncMailboxDomainsRequest
+		if err := readProtoJSON(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		resp, err := s.mailboxClient.SyncMailboxDomains(r.Context(), &req)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, err)
+			return
+		}
+		if resp.GetErrorMessage() != "" {
+			writeError(w, http.StatusBadGateway, errors.New(resp.GetErrorMessage()))
+			return
+		}
+		writeProtoJSON(w, http.StatusOK, resp)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *server) handleMailboxProviderCapabilities(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp, err := s.mailboxClient.ListMailboxProviderCapabilities(r.Context(), &pb.ListMailboxProviderCapabilitiesRequest{})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	if resp.GetErrorMessage() != "" {
+		writeError(w, http.StatusBadGateway, errors.New(resp.GetErrorMessage()))
+		return
+	}
+	writeJSON(w, http.StatusOK, resp.GetProviders())
 }
 
 func (s *server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -184,11 +265,18 @@ func (s *server) handleAccounts(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, err)
 			return
 		}
+		email := strings.TrimSpace(req.Email)
+		emailStrategy, err := accountEmailStrategy(req.EmailStrategy, email)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
 		accountID := randomID()
 		resp, err := s.accountWorkflowClient.CreateGPTAccount(r.Context(), &pb.CreateGPTAccountRequest{
-			AccountId: accountID,
-			Email:     strings.TrimSpace(req.Email),
-			Password:  req.Password,
+			AccountId:     accountID,
+			Email:         email,
+			Password:      req.Password,
+			EmailStrategy: emailStrategy,
 		})
 		if err != nil {
 			writeError(w, http.StatusBadGateway, err)
@@ -201,6 +289,82 @@ func (s *server) handleAccounts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusCreated, resp.GetAccount())
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *server) streamAccountEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	sse, err := newSSEWriter(w)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	sse.Start()
+
+	after := requestLastEventID(r)
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		latest, err := s.emitAccountEvents(r.Context(), sse, after)
+		if err != nil {
+			if errors.Is(r.Context().Err(), context.Canceled) || status.Code(err) == codes.Canceled {
+				return
+			}
+			sse.Error(err)
+			return
+		}
+		if latest > after {
+			after = latest
+		}
+		sse.Comment("keepalive")
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *server) emitAccountEvents(ctx context.Context, sse *sseWriter, after int64) (int64, error) {
+	resp, err := s.accountClient.ListAccounts(ctx, &pb.ListAccountsRequest{Limit: 500})
+	if err != nil {
+		return after, err
+	}
+	latest := after
+	for _, account := range resp.GetAccounts() {
+		if account.GetUpdatedAt() <= after {
+			continue
+		}
+		if account.GetUpdatedAt() > latest {
+			latest = account.GetUpdatedAt()
+		}
+		sse.Event(account.GetUpdatedAt(), "account", account)
+	}
+	return latest, nil
+}
+
+func accountEmailStrategy(value string, email string) (pb.AccountEmailStrategy, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "cloudflare", "manual":
+		if strings.TrimSpace(email) == "" {
+			return pb.AccountEmailStrategy_ACCOUNT_EMAIL_STRATEGY_UNSPECIFIED, fmt.Errorf("%s strategy requires email", value)
+		}
+		return pb.AccountEmailStrategy_ACCOUNT_EMAIL_STRATEGY_EXPLICIT, nil
+	case "outlook_primary":
+		return pb.AccountEmailStrategy_ACCOUNT_EMAIL_STRATEGY_OUTLOOK_PRIMARY, nil
+	case "outlook_alias":
+		return pb.AccountEmailStrategy_ACCOUNT_EMAIL_STRATEGY_OUTLOOK_ALIAS, nil
+	case "":
+		if strings.TrimSpace(email) != "" {
+			return pb.AccountEmailStrategy_ACCOUNT_EMAIL_STRATEGY_EXPLICIT, nil
+		}
+		return pb.AccountEmailStrategy_ACCOUNT_EMAIL_STRATEGY_OUTLOOK_ALIAS, nil
+	default:
+		return pb.AccountEmailStrategy_ACCOUNT_EMAIL_STRATEGY_UNSPECIFIED, fmt.Errorf("unsupported email strategy: %s", value)
 	}
 }
 
@@ -240,8 +404,6 @@ func (s *server) handleMailboxes(w http.ResponseWriter, r *http.Request) {
 			Provider:     strings.TrimSpace(req.Provider),
 			AuthStatus:   req.AuthStatus,
 			LastError:    req.LastError,
-			IsPrimary:    true,
-			PrimaryEmail: req.Email,
 		}})
 		if err != nil {
 			writeError(w, http.StatusBadGateway, err)
@@ -294,9 +456,19 @@ func (s *server) handleGPTEmailAllocations(w http.ResponseWriter, r *http.Reques
 
 func (s *server) handleMailbox(w http.ResponseWriter, r *http.Request) {
 	emailPath := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/mailboxes/"), "/")
+	parts := strings.Split(emailPath, "/")
+	emailPath = parts[0]
 	email, err := url.PathUnescape(emailPath)
 	if err != nil || strings.TrimSpace(email) == "" {
 		writeError(w, http.StatusBadRequest, errors.New("email_address is required"))
+		return
+	}
+	if len(parts) == 2 && parts[1] == "inbox" {
+		s.handleMailboxStoredInbox(w, r, email)
+		return
+	}
+	if len(parts) > 1 {
+		writeError(w, http.StatusNotFound, errors.New("mailbox endpoint not found"))
 		return
 	}
 	switch r.Method {
@@ -310,6 +482,27 @@ func (s *server) handleMailbox(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *server) handleMailboxStoredInbox(w http.ResponseWriter, r *http.Request, email string) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	resp, err := s.mailboxClient.ListMailboxInbox(r.Context(), &pb.ListMailboxInboxRequest{
+		EmailAddress:  strings.TrimSpace(email),
+		Limit:         int32(queryInt(r, "limit", 20)),
+		ParserProfile: strings.TrimSpace(r.URL.Query().Get("parser_profile")),
+	})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	if resp.GetErrorMessage() != "" {
+		writeError(w, http.StatusBadGateway, errors.New(resp.GetErrorMessage()))
+		return
+	}
+	writeJSON(w, http.StatusOK, resp.GetResult())
 }
 
 func (s *server) handleMailboxRegister(w http.ResponseWriter, r *http.Request) {
@@ -414,6 +607,7 @@ func (s *server) handleMailboxInbox(w http.ResponseWriter, r *http.Request) {
 		LimitPerMailbox: req.LimitPerMailbox,
 		MaxMailboxes:    req.MaxMailboxes,
 		EmailAddress:    strings.TrimSpace(req.EmailAddress),
+		ParserProfile:   strings.TrimSpace(req.ParserProfile),
 	})
 	if err != nil {
 		if status.Code(err) == codes.DeadlineExceeded {
@@ -424,6 +618,65 @@ func (s *server) handleMailboxInbox(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *server) streamMailboxEvents(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	email := strings.TrimSpace(r.URL.Query().Get("email_address"))
+	if email == "" {
+		email = strings.TrimSpace(r.URL.Query().Get("email"))
+	}
+	if email == "" {
+		writeError(w, http.StatusBadRequest, errors.New("email_address is required"))
+		return
+	}
+
+	stream, err := s.mailboxClient.StreamMailboxEmailEvents(r.Context(), &pb.StreamMailboxEmailEventsRequest{
+		EmailAddress:   email,
+		SubjectKeyword: strings.TrimSpace(r.URL.Query().Get("subject_keyword")),
+		ParserProfile:  strings.TrimSpace(r.URL.Query().Get("parser_profile")),
+		SignalKind:     requestEmailSignalKind(r),
+	})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+
+	sse, err := newSSEWriter(w)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	sse.Start()
+
+	for {
+		resp, err := stream.Recv()
+		if err != nil {
+			if errors.Is(r.Context().Err(), context.Canceled) || status.Code(err) == codes.Canceled {
+				return
+			}
+			sse.Error(err)
+			return
+		}
+		message := resp.GetMessage()
+		if message != nil {
+			eventID := message.GetReceivedAtUnix()
+			if eventID <= 0 {
+				eventID = time.Now().Unix()
+			}
+			eventEmail := strings.TrimSpace(resp.GetEmailAddress())
+			if eventEmail == "" {
+				eventEmail = email
+			}
+			sse.Event(eventID, "email", map[string]any{
+				"email_address": eventEmail,
+				"message":       message,
+			})
+		}
+	}
 }
 
 func (s *server) handleMailboxOperations(w http.ResponseWriter, r *http.Request) {
@@ -491,6 +744,10 @@ func (s *server) handleAccount(w http.ResponseWriter, r *http.Request) {
 			s.handleAccountCheckoutLink(w, r, accountID)
 			return
 		}
+		if len(parts) == 3 && parts[1] == "mailbox" && parts[2] == "inbox" {
+			s.handleAccountMailboxInbox(w, r, accountID)
+			return
+		}
 		writeError(w, http.StatusNotFound, errors.New("account endpoint not found"))
 		return
 	}
@@ -539,6 +796,88 @@ func (s *server) handleAccount(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func (s *server) handleAccountMailboxInbox(w http.ResponseWriter, r *http.Request, accountID string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req mailboxInboxRequest
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if req.LimitPerMailbox <= 0 {
+		req.LimitPerMailbox = 10
+	}
+	if req.LimitPerMailbox > 100 {
+		req.LimitPerMailbox = 100
+	}
+
+	timeout := envInt("ACCOUNT_MAILBOX_INBOX_TIMEOUT_SECONDS", envInt("MAILBOX_INBOX_TIMEOUT_SECONDS", 180))
+	if timeout < 30 {
+		timeout = 30
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	resp, err := s.accountWorkflowClient.FetchAccountMailbox(ctx, &pb.FetchAccountMailboxRequest{
+		AccountId:       accountID,
+		LimitPerMailbox: req.LimitPerMailbox,
+	})
+	if err != nil {
+		if status.Code(err) == codes.DeadlineExceeded {
+			writeError(w, http.StatusGatewayTimeout, err)
+			return
+		}
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *server) handleAccountMailboxSync(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req accountMailboxSyncRequest
+	if err := readJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if req.LimitPerMailbox <= 0 {
+		req.LimitPerMailbox = 25
+	}
+	if req.LimitPerMailbox > 100 {
+		req.LimitPerMailbox = 100
+	}
+	if req.AccountLimit <= 0 {
+		req.AccountLimit = 500
+	}
+	if req.AccountLimit > 500 {
+		req.AccountLimit = 500
+	}
+	timeout := envInt("ACCOUNT_MAILBOX_SYNC_TIMEOUT_SECONDS", 300)
+	if timeout < 30 {
+		timeout = 30
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	resp, err := s.accountWorkflowClient.SyncAccountMailboxes(ctx, &pb.SyncAccountMailboxesRequest{
+		LimitPerMailbox: req.LimitPerMailbox,
+		AccountLimit:    req.AccountLimit,
+	})
+	if err != nil {
+		if status.Code(err) == codes.DeadlineExceeded {
+			writeError(w, http.StatusGatewayTimeout, err)
+			return
+		}
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (s *server) handleAccountAccessToken(w http.ResponseWriter, r *http.Request, accountID string) {
@@ -610,8 +949,7 @@ func (s *server) handleAccountCheckoutLink(w http.ResponseWriter, r *http.Reques
 	}
 
 	resp, err := s.paymentClient.CreateCheckoutLink(ctx, &pb.CreateCheckoutLinkRequest{
-		SessionToken: sessionToken,
-		AccessToken:  accessToken,
+		Credential: paymentCredential(sessionToken, accessToken),
 	})
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
@@ -855,6 +1193,7 @@ func (s *server) handleJobs(w http.ResponseWriter, r *http.Request) {
 		Status:    strings.TrimSpace(r.URL.Query().Get("status")),
 		Action:    strings.TrimSpace(r.URL.Query().Get("action")),
 		AccountId: strings.TrimSpace(r.URL.Query().Get("account_id")),
+		Before:    requestJobListCursor(r),
 	})
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
@@ -864,7 +1203,15 @@ func (s *server) handleJobs(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, errors.New(resp.GetErrorMessage()))
 		return
 	}
-	writeJSON(w, http.StatusOK, resp.GetSnapshots())
+	if requestJobPageResponse(r) {
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+	snapshots := resp.GetSnapshots()
+	if snapshots == nil {
+		snapshots = []*pb.JobSnapshot{}
+	}
+	writeJSON(w, http.StatusOK, snapshots)
 }
 
 func (s *server) handleJob(w http.ResponseWriter, r *http.Request) {
@@ -879,11 +1226,23 @@ func (s *server) handleJob(w http.ResponseWriter, r *http.Request) {
 	if len(parts) > 1 {
 		switch parts[1] {
 		case "otp":
-			if r.Method != http.MethodPost {
-				w.WriteHeader(http.StatusMethodNotAllowed)
+			if len(parts) == 2 {
+				if r.Method != http.MethodPost {
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					return
+				}
+				s.submitJobOTP(w, r, jobID)
 				return
 			}
-			s.submitJobOTP(w, r, jobID)
+			if len(parts) == 3 && parts[2] == "resend" {
+				if r.Method != http.MethodPost {
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					return
+				}
+				s.resendJobOTP(w, r, jobID)
+				return
+			}
+			writeError(w, http.StatusNotFound, fmt.Errorf("unsupported job otp action: %s", strings.Join(parts[1:], "/")))
 			return
 		case "add-balance":
 			if len(parts) != 3 {
@@ -930,46 +1289,39 @@ func (s *server) streamJobsEvents(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		writeError(w, http.StatusInternalServerError, errors.New("streaming is not supported"))
-		return
-	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.WriteHeader(http.StatusOK)
-
 	stream, err := s.jobClient.WatchJobs(r.Context(), &pb.WatchJobsRequest{
-		JobIds:       requestJobIDs(r),
-		AfterEventId: requestLastEventID(r),
+		JobIds: requestJobIDs(r),
+		Status: strings.TrimSpace(r.URL.Query().Get("status")),
 	})
 	if err != nil {
-		_, _ = fmt.Fprintf(w, "event: error\ndata: %s\n\n", sseJSON(map[string]string{"error": err.Error()}))
-		flusher.Flush()
+		writeError(w, http.StatusBadGateway, err)
 		return
 	}
+
+	sse, err := newSSEWriter(w)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	sse.Start()
 
 	for {
 		event, err := stream.Recv()
 		if err != nil {
 			if !errors.Is(err, io.EOF) && status.Code(err) != codes.Canceled {
-				_, _ = fmt.Fprintf(w, "event: error\ndata: %s\n\n", sseJSON(map[string]string{"error": err.Error()}))
-				flusher.Flush()
+				sse.Error(err)
 			}
 			return
 		}
 		if event.GetErrorMessage() != "" {
-			_, _ = fmt.Fprintf(w, "event: error\ndata: %s\n\n", sseJSON(map[string]string{"error": event.GetErrorMessage()}))
-			flusher.Flush()
+			sse.Error(errors.New(event.GetErrorMessage()))
 			return
 		}
 		jobEvent := event.GetEvent()
 		if jobEvent == nil {
 			continue
 		}
-		_, _ = fmt.Fprintf(w, "id: %d\nevent: job\ndata: %s\n\n", jobEvent.GetEventId(), sseJSON(jobEvent))
-		flusher.Flush()
+		sse.Event(jobEvent.GetEventId(), "job", jobEvent)
 	}
 }
 
@@ -1003,6 +1355,20 @@ func requestJobIDs(r *http.Request) []string {
 	return out
 }
 
+func requestJobPageResponse(r *http.Request) bool {
+	value := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("page")))
+	return value == "true" || value == "1"
+}
+
+func requestJobListCursor(r *http.Request) *pb.JobListCursor {
+	updatedAt := int64(queryInt(r, "before_updated_at", 0))
+	jobID := strings.TrimSpace(r.URL.Query().Get("before_job_id"))
+	if updatedAt <= 0 && jobID == "" {
+		return nil
+	}
+	return &pb.JobListCursor{UpdatedAt: updatedAt, JobId: jobID}
+}
+
 func requestLastEventID(r *http.Request) int64 {
 	value := strings.TrimSpace(r.Header.Get("Last-Event-ID"))
 	if value == "" {
@@ -1018,6 +1384,21 @@ func requestLastEventID(r *http.Request) int64 {
 	return id
 }
 
+func requestEmailSignalKind(r *http.Request) pb.EmailSignalKind {
+	value := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("signal_kind")))
+	if value == "" {
+		value = strings.ToLower(strings.TrimSpace(r.URL.Query().Get("signal")))
+	}
+	switch value {
+	case "", "otp", "code", "verification_code", "email_signal_kind_otp":
+		return pb.EmailSignalKind_EMAIL_SIGNAL_KIND_OTP
+	case "any", "all", "unspecified":
+		return pb.EmailSignalKind_EMAIL_SIGNAL_KIND_UNSPECIFIED
+	default:
+		return pb.EmailSignalKind_EMAIL_SIGNAL_KIND_OTP
+	}
+}
+
 func (s *server) submitJobOTP(w http.ResponseWriter, r *http.Request, jobID string) {
 	var req submitJobOTPRequest
 	if err := readJSON(r, &req); err != nil {
@@ -1028,6 +1409,21 @@ func (s *server) submitJobOTP(w http.ResponseWriter, r *http.Request, jobID stri
 	resp, err := s.otpClient.SubmitOTP(r.Context(), &pb.SubmitOTPRequest{
 		JobId: jobID,
 		Otp:   req.OTP,
+	})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	if resp.GetErrorMessage() != "" {
+		writeError(w, http.StatusBadRequest, errors.New(resp.GetErrorMessage()))
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *server) resendJobOTP(w http.ResponseWriter, r *http.Request, jobID string) {
+	resp, err := s.otpClient.ResendOTP(r.Context(), &pb.ResendOTPRequest{
+		JobId: jobID,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
@@ -1080,7 +1476,7 @@ func (s *server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req pb.RegisterAccountRequest
-	if err := readJSON(r, &req); err != nil {
+	if err := readProtoJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
@@ -1223,6 +1619,108 @@ func (s *server) handleGoPayState(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *server) handleGoPayProfile(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
+		if userID == "" {
+			userID = "local"
+		}
+		resp, err := s.gopayAppClient.GoPayUserGetWAPhone(r.Context(), &pb.GoPayUserGetWAPhoneRequest{UserId: userID})
+		if err != nil {
+			writeError(w, http.StatusBadGateway, err)
+			return
+		}
+		writeProtoJSON(w, http.StatusOK, resp)
+	case http.MethodPost:
+		var req pb.GoPayUserSetWAPhoneRequest
+		if err := readProtoJSON(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		resp, err := s.gopayAppClient.GoPayUserSetWAPhone(r.Context(), &req)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, err)
+			return
+		}
+		writeProtoJSON(w, http.StatusOK, resp)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *server) handleGoPayUserAction(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	action := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/gopay/user/"), "/")
+	switch action {
+	case "check-phone":
+		var req pb.GoPayUserCheckPhoneRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserCheckPhone(r.Context(), &req) }) {
+			return
+		}
+	case "check-balance":
+		var req pb.GoPayUserCheckBalanceRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserCheckBalance(r.Context(), &req) }) {
+			return
+		}
+	case "auth-start":
+		var req pb.GoPayUserAuthStartRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserAuthStart(r.Context(), &req) }) {
+			return
+		}
+	case "auth-complete":
+		var req pb.GoPayUserAuthCompleteRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserAuthComplete(r.Context(), &req) }) {
+			return
+		}
+	case "signup-start":
+		var req pb.GoPayUserSignupStartRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserSignupStart(r.Context(), &req) }) {
+			return
+		}
+	case "signup-complete":
+		var req pb.GoPayUserSignupCompleteRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserSignupComplete(r.Context(), &req) }) {
+			return
+		}
+	case "change-phone-start":
+		var req pb.GoPayUserChangePhoneStartRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserChangePhoneStart(r.Context(), &req) }) {
+			return
+		}
+	case "change-phone-complete":
+		var req pb.GoPayUserChangePhoneCompleteRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserChangePhoneComplete(r.Context(), &req) }) {
+			return
+		}
+	case "change-phone-retry":
+		var req pb.GoPayUserChangePhoneRetryRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserChangePhoneRetry(r.Context(), &req) }) {
+			return
+		}
+	case "create-pin-start":
+		var req pb.GoPayUserCreatePinStartRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserCreatePinStart(r.Context(), &req) }) {
+			return
+		}
+	case "create-pin-complete":
+		var req pb.GoPayUserCreatePinCompleteRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserCreatePinComplete(r.Context(), &req) }) {
+			return
+		}
+	case "clear-state":
+		var req pb.GoPayUserClearStateRequest
+		if handleProtoAction(w, r, &req, func() (proto.Message, error) { return s.gopayAppClient.GoPayUserClearState(r.Context(), &req) }) {
+			return
+		}
+	default:
+		writeError(w, http.StatusNotFound, fmt.Errorf("unknown gopay action: %s", action))
+	}
+}
+
 func (s *server) handleGoPayPayment(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -1295,7 +1793,7 @@ func (s *server) handleRegisterAndActivate(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	var req pb.RegisterAndActivateAccountRequest
-	if err := readJSON(r, &req); err != nil {
+	if err := readProtoJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
@@ -1343,17 +1841,42 @@ func readProtoJSON(r *http.Request, dst protojsonUnmarshaler) error {
 	if len(strings.TrimSpace(string(raw))) == 0 {
 		raw = []byte("{}")
 	}
-	return protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal(raw, dst)
+	return (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, dst)
 }
 
 type protojsonUnmarshaler interface {
 	ProtoReflect() protoreflect.Message
 }
 
+func handleProtoAction(w http.ResponseWriter, r *http.Request, req protojsonUnmarshaler, call func() (proto.Message, error)) bool {
+	if err := readProtoJSON(r, req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return true
+	}
+	resp, err := call()
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return true
+	}
+	writeProtoJSON(w, http.StatusOK, resp)
+	return true
+}
+
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+func writeProtoJSON(w http.ResponseWriter, status int, value proto.Message) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	data, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(value)
+	if err != nil {
+		_, _ = w.Write([]byte("{}"))
+		return
+	}
+	_, _ = w.Write(data)
 }
 
 func writeError(w http.ResponseWriter, status int, err error) {
@@ -1423,6 +1946,22 @@ func gptAllocationStatusFromMailboxInput(statusValue string, authStatusValue str
 		return "AVAILABLE"
 	}
 	return "OAUTH_PENDING"
+}
+
+func paymentCredential(sessionToken, accessToken string) *pb.ChatGPTCredential {
+	accessToken = strings.TrimSpace(accessToken)
+	if accessToken != "" {
+		return &pb.ChatGPTCredential{
+			AccessToken: accessToken,
+		}
+	}
+	sessionToken = strings.TrimSpace(sessionToken)
+	if sessionToken != "" {
+		return &pb.ChatGPTCredential{
+			SessionToken: sessionToken,
+		}
+	}
+	return nil
 }
 
 func tailString(value string, limit int) string {

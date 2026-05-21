@@ -1,0 +1,29 @@
+.emptyTableRow td {
+  padding: 18px 14px;
+}
+
+.emptyTableRow:hover {
+  background: transparent;
+}
+
+.emptyBlock {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--muted-foreground);
+  background: var(--surface-soft);
+  font-size: 13px;
+}
+
+.busyLabel {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: #f2f5f9;
+  color: var(--muted-foreground);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+

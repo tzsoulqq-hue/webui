@@ -1,0 +1,119 @@
+
+.recordIdentity {
+  min-width: 0;
+  flex: 1 1 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+
+.recordIcon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--accent-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.recordIdentity > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+
+.recordTitle,
+.recordSubtitle,
+.recordFieldValue {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.recordTitle {
+  display: block;
+  width: 100%;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+
+.recordSubtitle {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+
+.recordMeta {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: 8px 12px;
+}
+
+
+.recordField {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+
+.recordField span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+
+.recordFieldValue {
+  color: #263241;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+
+.recordActions {
+  min-width: 0;
+  min-height: 30px;
+  max-width: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+
+.tableWrap {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  min-height: 0;
+  background: var(--surface);
+}
+
+
+[data-slot="table-container"] {
+  overflow-x: hidden;
+}
+
+
+table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+

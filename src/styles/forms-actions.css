@@ -1,0 +1,134 @@
+.badge.bad { color: var(--danger); background: var(--danger-soft); border-color: #f2c7c1; }
+
+
+.inlineBadges {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+
+.mono, .secret {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+
+.actions {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+
+.buttonRow {
+  align-items: stretch;
+}
+
+.buttonRow button {
+  flex: 1;
+  justify-content: center;
+}
+
+
+.hint, .empty {
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+
+.cellStack {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+
+.cellStack span,
+.cellStack small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.cellStack small,
+.muted {
+  color: var(--faint);
+}
+
+
+.latestOtp {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--teal);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+
+.mailActivity {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+
+.mailActivity small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--faint);
+}
+
+
+.rowActions {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+
+.rowActionsMain {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+
+.rowActionsMain button {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  justify-content: center;
+}
+
+
+.rowButton {
+  min-height: 30px;
+  padding: 5px 9px;
+  justify-content: center;
+}
+
+
+.rowButtonText {
+  width: auto !important;
+  min-width: 0;
+  min-height: 30px;
+  padding: 5px 9px !important;
+  justify-content: center;
+}

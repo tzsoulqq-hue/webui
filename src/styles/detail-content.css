@@ -1,0 +1,98 @@
+
+.details h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+
+.sectionTitle h3 {
+  margin: 0;
+}
+
+
+.sectionActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+
+.sectionTitle button {
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+
+.kv {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.kv span { color: var(--muted-foreground); }
+
+.valueButton {
+  justify-content: flex-start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+  user-select: text;
+}
+
+
+.kv .valueButton {
+  min-width: 0;
+  min-height: 34px;
+}
+
+
+.maskedValue {
+  -webkit-text-security: disc;
+}
+
+
+.editLine {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 34px 78px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.editLine span,
+.editLine > label {
+  color: var(--muted-foreground);
+}
+
+.editLine button,
+.copyButton {
+  justify-content: center;
+}
+
+
+.channelEditLine {
+  grid-template-columns: 96px minmax(0, 1fr) 78px;
+}
+
+
+.copyButton {
+  width: 34px;
+  min-width: 34px;
+  padding: 7px;
+}
