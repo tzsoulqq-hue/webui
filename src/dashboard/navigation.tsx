@@ -1,5 +1,6 @@
 import { Monitor, Moon, PanelLeftClose, PanelLeftOpen, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Sidebar,
   SidebarContent,
@@ -15,11 +16,16 @@ import {
   SidebarSeparator,
   useSidebar
 } from '@/components/ui/sidebar';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTheme } from '@/components/theme-provider';
 import { DashboardServiceStatusState } from '@/proto/dashboard';
 import type { DashboardNavItem, ServiceStatusMap } from './module-registry';
+
+const THEME_OPTIONS = [
+  { value: 'system', label: '跟随系统', Icon: Monitor },
+  { value: 'light', label: '亮色', Icon: Sun },
+  { value: 'dark', label: '暗色', Icon: Moon }
+] as const;
 
 export function DashboardSidebar({
   items,
@@ -63,7 +69,7 @@ function SidebarBrandItem() {
   if (state === 'collapsed') {
     return (
       <SidebarMenuItem>
-        <SidebarMenuButton tooltip="展开侧栏" className="dashboardSidebarBrand collapsedBrand" onClick={toggleSidebar}>
+        <SidebarMenuButton tooltip="展开侧栏" aria-label="展开侧栏" className="dashboardSidebarBrand collapsedBrand" onClick={toggleSidebar}>
           <PanelLeftOpen />
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -101,35 +107,39 @@ function SidebarBrandItem() {
 
 function SidebarThemeToggle() {
   const { theme, setTheme } = useTheme();
-  return (
-    <ToggleGroup
-      type="single"
-      value={theme}
-      variant="outline"
-      size="sm"
-      spacing={0}
-      aria-label="主题切换"
-      onValueChange={(value) => {
-        if (value === 'light' || value === 'dark' || value === 'system') setTheme(value);
-      }}
-    >
-      <ThemeToggleItem value="system" label="系统" icon={<Monitor />} />
-      <ThemeToggleItem value="light" label="亮色" icon={<Sun />} />
-      <ThemeToggleItem value="dark" label="暗色" icon={<Moon />} />
-    </ToggleGroup>
-  );
-}
+  const currentTheme = THEME_OPTIONS.find((item) => item.value === theme) ?? THEME_OPTIONS[0];
+  const CurrentIcon = currentTheme.Icon;
 
-function ThemeToggleItem({ value, label, icon }: { value: string; label: string; icon: React.ReactNode }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <ToggleGroupItem value={value} aria-label={label} title={label} className="themeToggleButton">
-          {icon}
-        </ToggleGroupItem>
-      </TooltipTrigger>
-      <TooltipContent side="right">{label}</TooltipContent>
-    </Tooltip>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`主题：${currentTheme.label}`}
+          title={`主题：${currentTheme.label}`}
+          className="sidebarBrandIconButton"
+        >
+          <CurrentIcon />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="right" align="start" className="w-32">
+        <DropdownMenuRadioGroup
+          value={theme}
+          onValueChange={(value) => {
+            const nextTheme = THEME_OPTIONS.find((item) => item.value === value)?.value;
+            if (nextTheme) setTheme(nextTheme);
+          }}
+        >
+          {THEME_OPTIONS.map(({ value, label, Icon }) => (
+            <DropdownMenuRadioItem key={value} value={value} className="themeMenuItem">
+              <Icon />
+              <span>{label}</span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -163,9 +173,12 @@ function NavGroup({
             return (
               <SidebarMenuItem key={item.key}>
                 <SidebarMenuButton
+                  size="lg"
                   isActive={activeView === item.key}
                   disabled={unavailable}
+                  aria-label={item.label}
                   tooltip={statusText ? `${item.label}：${statusText}` : item.label}
+                  className="dashboardSidebarNavButton"
                   onClick={() => onSelect(item.key)}
                 >
                   {item.icon}
