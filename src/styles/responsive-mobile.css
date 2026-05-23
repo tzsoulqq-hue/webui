@@ -41,8 +41,21 @@
   .editLine {
     grid-template-columns: 72px minmax(0, 1fr) 34px;
   }
+  .appDrawer .kv,
+  .appDrawer .editLine {
+    grid-template-columns: 72px minmax(0, 1fr) 34px;
+  }
   .editLine {
     grid-template-columns: 72px minmax(0, 1fr);
+  }
+  .appDrawer .editLine,
+  .appDrawer .channelEditLine {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+  .appDrawer .kv span,
+  .appDrawer .editLine span,
+  .appDrawer .editLine > label {
+    white-space: normal;
   }
   .editLine .copyButton,
   .editLine button:last-child {
