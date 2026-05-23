@@ -3,7 +3,7 @@ import { Activity } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 
-export function AppDrawer({ open, title, description, icon, size = 'default', className, bodyClassName, onOpenChange, children }: {
+export type AppDrawerProps = {
   open: boolean;
   title: string;
   description?: string;
@@ -13,7 +13,19 @@ export function AppDrawer({ open, title, description, icon, size = 'default', cl
   bodyClassName?: string;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
-}) {
+};
+
+export function AppDrawer({
+  open,
+  title,
+  description,
+  icon,
+  size = 'default',
+  className,
+  bodyClassName,
+  onOpenChange,
+  children,
+}: AppDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className={cn('appDrawer', className)} data-size={size} side="right" showCloseButton>
@@ -27,18 +39,18 @@ export function AppDrawer({ open, title, description, icon, size = 'default', cl
   );
 }
 
-export function DetailDrawer({ open, title, icon, onClose, children }: {
-  open: boolean;
-  title: string;
-  icon?: React.ReactNode;
+export type DetailDrawerProps = Omit<AppDrawerProps, 'description' | 'onOpenChange'> & {
+  description?: string;
   onClose: () => void;
-  children: React.ReactNode;
-}) {
+};
+
+export function DetailDrawer({ onClose, ...props }: DetailDrawerProps) {
   return (
-    <AppDrawer open={open} title={title} icon={icon} onOpenChange={(nextOpen) => {
-      if (!nextOpen) onClose();
-    }}>
-      {children}
-    </AppDrawer>
+    <AppDrawer
+      {...props}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    />
   );
 }

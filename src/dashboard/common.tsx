@@ -1,5 +1,5 @@
 export * from './common/actions';
-export * from './common/dialogs';
+export * from './common/drawer';
 export * from './common/empty';
 export * from './common/event-query';
 export * from './common/fields';
