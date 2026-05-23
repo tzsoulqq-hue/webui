@@ -1297,6 +1297,17 @@ func (s *server) handleJob(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusNotFound, fmt.Errorf("unsupported job add-balance action: %s", strings.Join(parts[1:], "/")))
 			}
 			return
+		case "cancel":
+			if len(parts) != 2 {
+				writeError(w, http.StatusNotFound, fmt.Errorf("unsupported job cancel action: %s", strings.Join(parts[1:], "/")))
+				return
+			}
+			if r.Method != http.MethodPost {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			s.cancelJob(w, r, jobID)
+			return
 		default:
 			writeError(w, http.StatusNotFound, fmt.Errorf("unsupported job action: %s", parts[1]))
 			return
@@ -1460,6 +1471,25 @@ func (s *server) resendJobOTP(w http.ResponseWriter, r *http.Request, jobID stri
 	resp, err := s.otpClient.ResendOTP(r.Context(), &pb.ResendOTPRequest{
 		JobId: jobID,
 	})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	if resp.GetErrorMessage() != "" {
+		writeError(w, http.StatusBadRequest, errors.New(resp.GetErrorMessage()))
+		return
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *server) cancelJob(w http.ResponseWriter, r *http.Request, jobID string) {
+	var req pb.CancelJobRequest
+	if err := readProtoJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	req.JobId = jobID
+	resp, err := s.jobClient.CancelJob(r.Context(), &req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err)
 		return
