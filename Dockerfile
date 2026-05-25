@@ -15,6 +15,7 @@ COPY sms/proto /sms/proto
 COPY webui/proto ./proto
 COPY webui/scripts ./scripts
 COPY webui/src ./src
+RUN find ./scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} \;
 RUN SOURCE_ROOT=/ GENERATE_GO_PROTO=false npm run build
 
 FROM docker.m.daocloud.io/library/golang:1.26-alpine AS go-builder
