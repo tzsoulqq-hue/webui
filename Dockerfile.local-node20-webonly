@@ -1,0 +1,22 @@
+FROM node:20-bookworm-slim AS web-builder
+
+WORKDIR /web
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends libprotobuf-dev protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+COPY webui/package.json webui/package-lock.json* ./
+RUN npm ci
+COPY webui/index.html webui/vite.config.ts webui/tsconfig.json webui/components.json ./
+COPY webui/public ./public
+COPY gpt/proto /gpt/proto
+COPY mailbox/proto /mailbox/proto
+COPY sms/proto /sms/proto
+COPY webui/proto ./proto
+COPY webui/scripts ./scripts
+COPY webui/src ./src
+RUN find ./scripts -type f -name '*.sh' -exec sed -i 's/\r$//' {} \;
+RUN SOURCE_ROOT=/ GENERATE_GO_PROTO=false npm run build
+
+FROM local-webui-mailbox-register-ui
+COPY --from=web-builder /web/dist /app/web/dist

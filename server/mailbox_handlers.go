@@ -45,6 +45,9 @@ func (s *server) handleMailboxes(w http.ResponseWriter, r *http.Request) {
 			Provider:     strings.TrimSpace(req.Provider),
 			AuthStatus:   req.AuthStatus,
 			LastError:    req.LastError,
+			HomeCountry:  strings.ToUpper(strings.TrimSpace(req.HomeCountry)),
+			HomeIp:       strings.TrimSpace(req.HomeIP),
+			ProxyProfile: strings.TrimSpace(req.ProxyProfile),
 		}})
 		if err != nil {
 			writeError(w, http.StatusBadGateway, err)
